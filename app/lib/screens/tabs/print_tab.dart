@@ -7,6 +7,7 @@ import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../print_screen.dart';
+import '../slice_screen.dart';
 
 /// Pestaña "Imprimir": cola, biblioteca del servidor y tarjeta SD.
 class PrintTab extends StatefulWidget {
@@ -60,10 +61,11 @@ class _PrintTabState extends State<PrintTab> {
     final files = await FilePicker.pickFiles(type: FileType.any);
     if (files.isEmpty) return;
     final f = files.first;
-    if (!f.name.toLowerCase().endsWith('.3mf')) {
+    const allowed = ['.3mf', '.stl', '.obj', '.step', '.stp'];
+    if (!allowed.any((e) => f.name.toLowerCase().endsWith(e))) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Elegí un archivo .3mf laminado (exportado como "gcode.3mf")')));
+            .showSnackBar(const SnackBar(content: Text('Formatos aceptados: 3MF, STL, OBJ y STEP')));
       }
       return;
     }
@@ -89,8 +91,11 @@ class _PrintTabState extends State<PrintTab> {
 
   void _openPrint(LibraryItem item) {
     if (!item.sliced) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este 3MF no está laminado. El laminado en el servidor llega en la etapa 3.')),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SliceScreen(printerId: widget.printer.id, item: item),
+        ),
       );
       return;
     }
@@ -151,7 +156,7 @@ class _PrintTabState extends State<PrintTab> {
                       height: 20,
                       child: CircularProgressIndicator(value: _uploadProgress, strokeWidth: 2.5),
                     ),
-              label: Text(_uploadProgress == null ? 'Subir 3MF' : 'Subiendo ${(_uploadProgress! * 100).round()}%'),
+              label: Text(_uploadProgress == null ? 'Subir modelo' : 'Subiendo ${(_uploadProgress! * 100).round()}%'),
             )
           : null,
       body: RefreshIndicator(
@@ -198,8 +203,8 @@ class _PrintTabState extends State<PrintTab> {
         const _Message(
           icon: Icons.inventory_2_outlined,
           text:
-              'Tu biblioteca está vacía.\nSubí un archivo .gcode.3mf laminado en Bambu Studio u OrcaSlicer '
-              '(Exportar → Exportar archivo de placa laminada).',
+              'Tu biblioteca está vacía.\nSubí un modelo STL, OBJ, STEP o 3MF para laminarlo acá, '
+              'o un .gcode.3mf ya laminado en Bambu Studio u OrcaSlicer.',
         ),
       ];
     }
@@ -369,7 +374,7 @@ class _LibraryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       !item.sliced
-                          ? 'Sin laminar'
+                          ? 'Sin laminar · ${(item.format ?? '3mf').toUpperCase()} · tocá para laminar'
                           : [
                               if (item.plates.length > 1) '${item.plates.length} placas',
                               if (plate?.predictionS != null) formatDuration((plate!.predictionS! / 60).round()),

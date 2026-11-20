@@ -37,6 +37,8 @@ async def main(model: str = "A1") -> int:
     lib = get_library()
     if not lib or not orca_binary():
         print("ERROR: OrcaSlicer o sus perfiles no están instalados")
+        for d in sorted(Path("/opt/orca").glob("**/profiles"))[:5]:
+            print("  carpeta de perfiles encontrada:", d)
         return 1
     machine = MACHINE_FOR_MODEL[model]
     procs = lib.processes(machine)

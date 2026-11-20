@@ -157,6 +157,37 @@ class ApiClient {
       TrayAssignment.fromJson(x),
   ];
 
+  // ---- laminado -------------------------------------------------------
+  Future<bool> slicerAvailable() async => ((await _req('GET', '/slicer')) as Map)['available'] == true;
+
+  Future<SlicerProfiles> slicerProfiles(String printerId) async =>
+      SlicerProfiles.fromJson(await _req('GET', '/slicer/profiles', query: {'printer_id': printerId}));
+
+  Future<SliceJob> slice(
+    String libraryId, {
+    required String printerId,
+    required String process,
+    required List<String> filaments,
+    required Map<String, dynamic> overrides,
+    int copies = 1,
+  }) async => SliceJob.fromJson(
+    await _req(
+      'POST',
+      '/library/$libraryId/slice',
+      body: {
+        'printer_id': printerId,
+        'process': process,
+        'filaments': filaments,
+        'overrides': overrides,
+        'copies': copies,
+      },
+    ),
+  );
+
+  Future<SliceJob> sliceJob(String id) async => SliceJob.fromJson(await _req('GET', '/slicer/jobs/$id'));
+
+  Future<LibraryItem> libraryItem(String id) async => LibraryItem.fromJson(await _req('GET', '/library/$id'));
+
   // ---- tarjeta SD -----------------------------------------------------
   Future<List<SdFile>> sdFiles(String printerId, String path) async => [
     for (final x in (await _req('GET', '/printers/$printerId/files', query: {'path': path})) as List)

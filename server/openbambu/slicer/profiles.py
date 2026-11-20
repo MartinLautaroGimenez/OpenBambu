@@ -37,6 +37,13 @@ def profiles_dir() -> Path | None:
     for c in candidates:
         if c and (Path(c) / "machine").is_dir():
             return Path(c)
+    # La ubicación dentro del AppImage cambia entre versiones: buscarla
+    orca = Path("/opt/orca")
+    if orca.is_dir() and not os.getenv("OB_ORCA_PROFILES"):
+        for pattern in ("*/profiles/BBL", "*/*/profiles/BBL", "*/*/*/profiles/BBL", "*/*/*/*/profiles/BBL"):
+            for found in sorted(orca.glob(pattern)):
+                if (found / "machine").is_dir():
+                    return found
     return None
 
 

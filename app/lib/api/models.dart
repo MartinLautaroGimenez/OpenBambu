@@ -229,6 +229,7 @@ class LibraryItem {
   final DateTime added;
   final String source;
   final bool sliced;
+  final String? format;
   final List<Plate> plates;
 
   LibraryItem.fromJson(Map<String, dynamic> j)
@@ -239,6 +240,7 @@ class LibraryItem {
       added = DateTime.fromMillisecondsSinceEpoch((_d(j['added']) * 1000).round()),
       source = j['source'] ?? 'upload',
       sliced = (j['meta'] ?? const {})['sliced'] == true,
+      format = (j['meta'] ?? const {})['format'],
       plates = [for (final p in ((j['meta'] ?? const {})['plates'] as List? ?? [])) Plate.fromJson(p)];
 }
 
@@ -328,4 +330,81 @@ class QueueState {
 
   List<QueueJob> get pending => jobs.where((j) => !j.isHistory).toList();
   List<QueueJob> get history => jobs.where((j) => j.isHistory).toList();
+}
+
+// ---- Etapa 3: laminado ---------------------------------------------------
+
+class ProcessProfile {
+  final String name;
+  final String label;
+  final double? layerHeight;
+
+  ProcessProfile.fromJson(Map<String, dynamic> j)
+    : name = j['name'],
+      label = j['label'] ?? j['name'],
+      layerHeight = j['layer_height'] == null ? null : _d(j['layer_height']);
+}
+
+class FilamentProfile {
+  final String name;
+  final String label;
+  final String type;
+  final String vendor;
+
+  FilamentProfile.fromJson(Map<String, dynamic> j)
+    : name = j['name'],
+      label = j['label'] ?? j['name'],
+      type = j['type'] ?? 'PLA',
+      vendor = j['vendor'] ?? '';
+}
+
+class TrayFilament {
+  final int tray;
+  final String? type;
+  final String? color;
+  final String? profile;
+
+  TrayFilament.fromJson(Map<String, dynamic> j)
+    : tray = _i(j['tray']),
+      type = j['type'],
+      color = j['color'],
+      profile = j['profile'];
+}
+
+class SlicerProfiles {
+  final String machine;
+  final List<ProcessProfile> processes;
+  final List<FilamentProfile> filaments;
+  final String? defaultProcess;
+  final String? defaultFilament;
+  final List<TrayFilament> trayFilaments;
+
+  SlicerProfiles.fromJson(Map<String, dynamic> j)
+    : machine = j['machine'] ?? '',
+      processes = [for (final p in (j['processes'] as List? ?? [])) ProcessProfile.fromJson(p)],
+      filaments = [for (final f in (j['filaments'] as List? ?? [])) FilamentProfile.fromJson(f)],
+      defaultProcess = j['default_process'],
+      defaultFilament = j['default_filament'],
+      trayFilaments = [for (final t in (j['tray_filaments'] as List? ?? [])) TrayFilament.fromJson(t)];
+}
+
+class SliceJob {
+  final String id;
+  final String name;
+  final String status;
+  final String? error;
+  final String? resultId;
+  final double elapsed;
+  final List<String> logTail;
+
+  SliceJob.fromJson(Map<String, dynamic> j)
+    : id = j['id'],
+      name = j['name'] ?? '',
+      status = j['status'] ?? 'queued',
+      error = j['error'],
+      resultId = j['result_id'],
+      elapsed = _d(j['elapsed']),
+      logTail = [for (final l in (j['log_tail'] as List? ?? [])) '$l'];
+
+  bool get finished => status == 'done' || status == 'failed';
 }
