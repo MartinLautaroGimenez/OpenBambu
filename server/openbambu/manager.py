@@ -146,6 +146,10 @@ class PrinterManager:
         self.queue.start()
         self._started = True
         await self.discovery.start()
+        from .printer.hms_db import DB as HMS_DB
+        t = asyncio.create_task(HMS_DB.refresh(Path(self.settings.data_dir) / "cache"))
+        self._tasks.add(t)
+        t.add_done_callback(self._tasks.discard)
         if not self.printers:
             log.warning("No hay impresoras configuradas: agregalas desde la app (Ajustes → Impresoras)")
 

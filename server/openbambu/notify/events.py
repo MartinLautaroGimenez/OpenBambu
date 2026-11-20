@@ -92,7 +92,8 @@ class EventDetector:
                                            f"Se canceló «{name}»", severity="warning", snapshot=True))
                 else:
                     code = f" (error {job['print_error']:08X})" if job["print_error"] else ""
-                    events.append(self._ev("print_failed", "Impresión fallida", f"Falló «{name}»{code}",
+                    detail = f": {job['print_error_text']}" if job.get("print_error_text") else ""
+                    events.append(self._ev("print_failed", "Impresión fallida", f"Falló «{name}»{code}{detail}",
                                            severity="error", progress=job["progress"], snapshot=True))
 
         # Primera capa
@@ -121,7 +122,8 @@ class EventDetector:
         for code, h in current.items():
             if code not in self.seen_hms:
                 sev = "error" if h["severity"] in ("fatal", "serious") else "warning"
-                events.append(self._ev("hms", "Alerta de la impresora", f"Código HMS {code}",
+                events.append(self._ev("hms", "Alerta de la impresora",
+                                       h.get("description") or f"Código HMS {code}",
                                        severity=sev, snapshot=sev == "error"))
         self.seen_hms = set(current)
         return events

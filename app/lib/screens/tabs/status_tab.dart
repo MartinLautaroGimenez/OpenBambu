@@ -89,7 +89,12 @@ class _HmsBanner extends StatelessWidget {
                     serious ? 'Error de la impresora' : 'Aviso de la impresora',
                     style: TextStyle(color: c, fontWeight: FontWeight.w800),
                   ),
-                  Text('HMS ${hms.code} · ver en la pestaña Eventos', style: const TextStyle(fontSize: 12.5)),
+                  Text(hms.description ?? 'HMS ${hms.code}', style: const TextStyle(fontSize: 13.5)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'HMS ${hms.code} · más detalles en Actividad → Eventos',
+                    style: const TextStyle(fontSize: 11.5, color: Colors.white54),
+                  ),
                 ],
               ),
             ),
@@ -246,6 +251,11 @@ class _JobCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
             ),
+            if (s.state == 'FAILED' && job.printErrorText != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(job.printErrorText!, style: const TextStyle(color: AppColors.danger)),
+              ),
             if (s.isActive && s.stage != 0 && s.stage != -1 && s.stage != 255)
               Padding(
                 padding: const EdgeInsets.only(top: 4),

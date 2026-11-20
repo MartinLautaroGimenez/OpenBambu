@@ -12,6 +12,7 @@ import copy
 import time
 from typing import Any
 
+from .hms_db import DB
 from .models import CAPABILITIES, GCODE_STATES, SPEED_LEVELS, STAGES
 
 
@@ -59,6 +60,7 @@ def parse_hms(items: list[dict] | None) -> list[dict]:
         out.append(
             {
                 "code": full,
+                "description": DB.describe_hms(full),
                 "severity": HMS_SEVERITY.get(code >> 16, "info"),
                 "url": f"https://wiki.bambulab.com/en/x1/troubleshooting/hmscode/{full}",
             }
@@ -138,6 +140,7 @@ def normalize(raw: dict, model: str, connected: bool, updated_at: float) -> dict
             "remaining_min": remaining_min,
             "eta": (updated_at + remaining_min * 60) if printing and remaining_min else None,
             "print_error": _i(p.get("print_error")),
+            "print_error_text": DB.describe_error(_i(p.get("print_error"))),
         },
         "temps": {
             "nozzle": round(_f(p.get("nozzle_temper")), 1),

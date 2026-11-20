@@ -47,6 +47,7 @@ class Job {
   final int remainingMin;
   final DateTime? eta;
   final int printError;
+  final String? printErrorText;
 
   Job.fromJson(Map<String, dynamic> j)
     : name = j['name'],
@@ -55,7 +56,8 @@ class Job {
       totalLayers = _i(j['total_layers']),
       remainingMin = _i(j['remaining_min']),
       eta = j['eta'] == null ? null : DateTime.fromMillisecondsSinceEpoch((_d(j['eta']) * 1000).round()),
-      printError = _i(j['print_error']);
+      printError = _i(j['print_error']),
+      printErrorText = j['print_error_text'];
 }
 
 class Temps {
@@ -121,11 +123,13 @@ class Hms {
   final String code;
   final String severity;
   final String url;
+  final String? description;
 
   Hms.fromJson(Map<String, dynamic> j)
     : code = j['code'] ?? '',
       severity = j['severity'] ?? 'info',
-      url = j['url'] ?? '';
+      url = j['url'] ?? '',
+      description = j['description'];
 }
 
 class PrinterStatus {

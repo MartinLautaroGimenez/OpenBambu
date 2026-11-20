@@ -141,3 +141,30 @@ def test_event_detector_cancel_hms_offline():
     assert types(d.feed(_snap("IDLE", connected=False))) == ["offline"]
     # al reconectar no se disparan transiciones espurias
     assert types(d.feed(_snap("RUNNING", 50, 50))) == []
+
+
+def test_hms_descriptions_spanish_with_english_fallback():
+    from openbambu.printer.hms_db import DB, HmsDatabase
+
+    db = HmsDatabase()
+    db.load_dict({"data": {"device_hms": {"es": [{"ecode": "0700800000020001", "intro": "Falla en el AMS lite"}]},
+                           "device_error": {"es": [{"ecode": "0300400C", "intro": "Se canceló la impresión"}]}}}, "es")
+    db.load_dict({"data": {"device_hms": {"en": [{"ecode": "0700800000020001", "intro": "AMS lite failure"},
+                                                 {"ecode": "0300120000020001", "intro": "Only in English"}]}}}, "en")
+    assert db.describe_hms("0700_8000_0002_0001") == "Falla en el AMS lite"  # español primero
+    assert db.describe_hms("0300_1200_0002_0001") == "Only in English"      # respaldo
+    assert db.describe_error(50348044) == "Se canceló la impresión"
+    assert db.describe_error(0) is None
+
+    # El estado normalizado incluye las descripciones
+    DB.hms, DB.errors = db.hms, db.errors
+    try:
+        st = PrinterState("A1")
+        st.connected = True
+        st.apply({"print": {"gcode_state": "FAILED", "print_error": 50348044,
+                            "hms": [{"attr": 0x07008000, "code": 0x00020001}]}})
+        s = st.snapshot()
+        assert s["hms"][0]["description"] == "Falla en el AMS lite"
+        assert s["job"]["print_error_text"] == "Se canceló la impresión"
+    finally:
+        DB.hms, DB.errors = {}, {}
