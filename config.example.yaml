@@ -1,0 +1,29 @@
+# Copiá este archivo a data/config.yaml y completalo.
+
+# Token que usa la app para conectarse. Si lo dejás vacío se genera uno
+# automáticamente y se muestra en los logs (docker logs openbambu).
+api_token: ""
+
+printers:
+  - id: a1
+    name: Mi A1
+    model: A1              # A1 | A1MINI | P1P | P1S | X1C | X1E
+    host: 192.168.1.50     # IP de la impresora (conviene reservarla en el router)
+    serial: 03919A3B1234567
+    access_code: "12345678"  # Pantalla de la impresora > Ajustes > WLAN
+    mode: lan              # lan | simulator
+
+  # Impresora simulada para probar la app sin hardware:
+  # - id: demo
+  #   name: Simulador
+  #   model: A1
+  #   mode: simulator
+
+notifications:
+  # Avisar cada N % de progreso (0 = desactivado)
+  progress_step: 25
+  ntfy:
+    enabled: false
+    url: https://ntfy.sh
+    topic: elegi-un-nombre-largo-y-secreto
+    token: ""

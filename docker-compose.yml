@@ -1,0 +1,18 @@
+services:
+  openbambu:
+    build: ./server
+    container_name: openbambu
+    restart: unless-stopped
+    # host: necesario para que el servidor vea la impresora en la red local
+    network_mode: host
+    volumes:
+      - ./data:/data
+    environment:
+      - TZ=America/Argentina/Buenos_Aires
+      # Alternativa a config.yaml para una sola impresora:
+      # - OB_PRINTER_HOST=192.168.1.50
+      # - OB_PRINTER_SERIAL=03919A3B1234567
+      # - OB_PRINTER_ACCESS_CODE=12345678
+      # - OB_PRINTER_MODEL=A1
+      # Para probar sin impresora:
+      # - OB_PRINTER_MODE=simulator
