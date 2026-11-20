@@ -24,6 +24,11 @@ Software libre para controlar impresoras **Bambu Lab** (pensado para la **A1**, 
 | 📈 **Historial y estadísticas** | Cada impresión con foto final, duración, gramos y costo; reimprimir; éxito, horas, gasto, por mes y por material |
 | 🔌 **Enchufe (Home Assistant)** | Prender/apagar desde la app, auto-apagado al terminar y enfriarse, auto-encendido cuando la cola tiene un trabajo |
 | 🧊 **Vista previa del G-code** | Visor 3D y capa por capa, coloreado por tipo de línea o filamento |
+| ⏰ **Programar impresiones** | Elegís día y hora; la cola arranca sola (y prende la impresora con el enchufe) |
+| 🎬 **Timelapse** | Una foto por capa y video al terminar, en el historial de cada impresión |
+| 📱 **Widget de Android** | Cámara, progreso, tiempo restante y botón de pausa en la pantalla de inicio |
+| 🆘 **Errores en castellano** | Las alertas HMS y códigos de error se explican en español (base oficial de Bambu) |
+| ✂️ **Omitir objetos** | Durante la impresión, tocás en la cama los objetos que querés dejar de imprimir |
 | 🔔 **Notificaciones** | Notificación persistente con **barra de progreso** (Live Update en Android 16), avisos de inicio, pausa, fin, falla, filamento agotado, primera capa y errores HMS. Push opcional vía **ntfy** con captura de la cámara |
 
 ## Arquitectura

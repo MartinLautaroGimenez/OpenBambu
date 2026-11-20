@@ -6,6 +6,7 @@ import '../api/client.dart';
 import '../api/models.dart';
 import 'notifications.dart';
 import 'settings_store.dart';
+import 'widget_service.dart';
 
 /// Monitoreo en segundo plano (Android).
 ///
@@ -77,6 +78,7 @@ class _MonitorHandler extends TaskHandler {
   bool _showingProgress = false;
   int _idleTicks = 0;
   String _lastIdleText = '';
+  DateTime _lastWidgetPhoto = DateTime.fromMillisecondsSinceEpoch(0);
 
   @override
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
@@ -103,6 +105,7 @@ class _MonitorHandler extends TaskHandler {
 
       final printers = await api.printers();
       final active = printers.where((p) => p.status.isActive).toList();
+      await _updateWidget(api, store, printers, active);
       if (active.isNotEmpty) {
         await Notifications.showProgress(active.first);
         _showingProgress = true;
@@ -140,6 +143,26 @@ class _MonitorHandler extends TaskHandler {
     } finally {
       _busy = false;
     }
+  }
+
+  /// Widget: la impresora que se está usando (o la elegida en la app), con una
+  /// foto de la cámara cada ~30 s mientras imprime (cada ~5 min si no).
+  Future<void> _updateWidget(ApiClient api, SettingsStore store, List<Printer> printers, List<Printer> active) async {
+    if (!PrinterWidget.supported) return;
+    try {
+      final p = active.isNotEmpty
+          ? active.first
+          : printers.where((x) => x.id == store.selectedPrinter).firstOrNull ?? printers.firstOrNull;
+      final every = p != null && p.status.isActive ? const Duration(seconds: 30) : const Duration(minutes: 5);
+      Uint8List? photo;
+      if (p != null && !p.status.isOffline && DateTime.now().difference(_lastWidgetPhoto) > every) {
+        _lastWidgetPhoto = DateTime.now();
+        try {
+          photo = await api.snapshot(p.id);
+        } catch (_) {}
+      }
+      await PrinterWidget.update(p, snapshot: photo);
+    } catch (_) {}
   }
 
   @override

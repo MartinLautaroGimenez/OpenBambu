@@ -8,6 +8,7 @@ import 'screens/setup_screen.dart';
 import 'services/background.dart';
 import 'services/notifications.dart';
 import 'services/settings_store.dart';
+import 'services/widget_service.dart';
 import 'state/app_state.dart';
 import 'theme.dart';
 
@@ -16,6 +17,7 @@ Future<void> main() async {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   BackgroundMonitor.init();
   await Notifications.init();
+  await PrinterWidget.init();
   final store = await SettingsStore.load();
   final state = AppState(store);
   if (store.configured && store.backgroundMonitor) {
