@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from .config import PrinterConfig, Settings
+from .library.history import HistoryRecorder
 from .library.queue import QueueManager
 from .library.store import Store
 from .catalog.service import CatalogService
@@ -40,6 +41,7 @@ class PrinterManager:
         self.store = Store(Path(settings.data_dir))
         self.queue = QueueManager(self.store, self.printers, self.emit)
         self.slicer = SliceManager(self.store, self.printers)
+        self.history = HistoryRecorder(self.store, self.printers, Path(settings.data_dir))
         self.catalog = CatalogService(settings.catalog, self.store)
         # Token de MakerWorld guardado desde la app (tiene prioridad sobre config.yaml)
         from .catalog.bambu_auth import load_secrets
@@ -56,6 +58,8 @@ class PrinterManager:
             det = EventDetector(cfg.id, cfg.name, self.settings.notifications.progress_step)
             self._detectors[cfg.id] = det
             printer.add_listener(lambda snap, d=det: self._on_status(d, snap))
+            # El historial se registra antes que la cola para asociar el trabajo activo
+            printer.add_listener(lambda snap, pid=cfg.id: self.history.on_status(pid, snap))
             printer.add_listener(lambda snap, pid=cfg.id: self.queue.on_status(pid, snap))
             self.printers[cfg.id] = printer
             await printer.start()

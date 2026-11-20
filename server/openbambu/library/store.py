@@ -34,6 +34,39 @@ CREATE TABLE IF NOT EXISTS jobs (
     started REAL,
     finished REAL
 );
+CREATE TABLE IF NOT EXISTS prints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    printer_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    file TEXT,
+    library_id TEXT,
+    plate INTEGER,
+    job_id INTEGER,
+    status TEXT NOT NULL,
+    started REAL NOT NULL,
+    finished REAL,
+    progress INTEGER NOT NULL DEFAULT 0,
+    weight_g REAL,
+    cost REAL,
+    filaments TEXT NOT NULL DEFAULT '[]',
+    error TEXT,
+    snapshot INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS spools (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    brand TEXT NOT NULL DEFAULT '',
+    material TEXT NOT NULL,
+    color TEXT,
+    color_name TEXT NOT NULL DEFAULT '',
+    weight_g REAL NOT NULL DEFAULT 1000,
+    remaining_g REAL NOT NULL DEFAULT 1000,
+    price REAL NOT NULL DEFAULT 0,
+    printer_id TEXT,
+    tray INTEGER,
+    archived INTEGER NOT NULL DEFAULT 0,
+    created REAL NOT NULL,
+    notes TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS queue_state (
     printer_id TEXT PRIMARY KEY,
     paused INTEGER NOT NULL DEFAULT 0,
@@ -200,3 +233,101 @@ class Store:
             " ON CONFLICT(printer_id) DO UPDATE SET paused=excluded.paused, bed_clear=excluded.bed_clear",
             (printer_id, int(st["paused"]), int(st["bed_clear"])),
         )
+
+    # ---- historial de impresiones -----------------------------------------
+    @staticmethod
+    def _print(row: sqlite3.Row) -> dict:
+        d = dict(row)
+        d["filaments"] = json.loads(d["filaments"] or "[]")
+        d["snapshot"] = bool(d["snapshot"])
+        return d
+
+    def add_print(self, **fields) -> int:
+        fields.setdefault("started", time.time())
+        if "filaments" in fields:
+            fields["filaments"] = json.dumps(fields["filaments"])
+        cols = ", ".join(fields)
+        with self._lock:
+            cur = self._db.execute(f"INSERT INTO prints ({cols}) VALUES ({','.join('?' * len(fields))})",
+                                   tuple(fields.values()))
+            self._db.commit()
+            return cur.lastrowid  # type: ignore[return-value]
+
+    def update_print(self, pid: int, **fields) -> None:
+        if "filaments" in fields:
+            fields["filaments"] = json.dumps(fields["filaments"])
+        if "snapshot" in fields:
+            fields["snapshot"] = int(fields["snapshot"])
+        cols = ", ".join(f"{k}=?" for k in fields)
+        self._q(f"UPDATE prints SET {cols} WHERE id=?", (*fields.values(), pid))
+
+    def get_print(self, pid: int) -> dict | None:
+        rows = self._q("SELECT * FROM prints WHERE id=?", (pid,))
+        return self._print(rows[0]) if rows else None
+
+    def open_print(self, printer_id: str) -> dict | None:
+        rows = self._q("SELECT * FROM prints WHERE printer_id=? AND status='printing' ORDER BY id DESC LIMIT 1",
+                       (printer_id,))
+        return self._print(rows[0]) if rows else None
+
+    def prints(self, printer_id: str | None = None, limit: int = 50, offset: int = 0) -> list[dict]:
+        if printer_id:
+            rows = self._q("SELECT * FROM prints WHERE printer_id=? ORDER BY started DESC LIMIT ? OFFSET ?",
+                           (printer_id, limit, offset))
+        else:
+            rows = self._q("SELECT * FROM prints ORDER BY started DESC LIMIT ? OFFSET ?", (limit, offset))
+        return [self._print(r) for r in rows]
+
+    def delete_print(self, pid: int) -> None:
+        self._q("DELETE FROM prints WHERE id=?", (pid,))
+
+    # ---- inventario de filamento ------------------------------------------
+    SPOOL_FIELDS = ("brand", "material", "color", "color_name", "weight_g", "remaining_g", "price",
+                    "printer_id", "tray", "archived", "notes")
+
+    def add_spool(self, **fields) -> dict:
+        data = {k: v for k, v in fields.items() if k in self.SPOOL_FIELDS}
+        data["created"] = time.time()
+        with self._lock:
+            cur = self._db.execute(
+                f"INSERT INTO spools ({', '.join(data)}) VALUES ({','.join('?' * len(data))})", tuple(data.values()))
+            self._db.commit()
+            sid = cur.lastrowid
+        if data.get("tray") is not None:
+            self.assign_tray(sid, data.get("printer_id"), data["tray"])  # type: ignore[arg-type]
+        return self.get_spool(sid)  # type: ignore[arg-type,return-value]
+
+    def get_spool(self, sid: int) -> dict | None:
+        rows = self._q("SELECT * FROM spools WHERE id=?", (sid,))
+        return dict(rows[0]) if rows else None
+
+    def spools(self, include_archived: bool = False) -> list[dict]:
+        sql = "SELECT * FROM spools" + ("" if include_archived else " WHERE archived=0") + " ORDER BY material, brand"
+        return [dict(r) for r in self._q(sql)]
+
+    def update_spool(self, sid: int, **fields) -> dict | None:
+        data = {k: v for k, v in fields.items() if k in self.SPOOL_FIELDS}
+        if "tray" in data:
+            tray = data.pop("tray")
+            self.assign_tray(sid, data.get("printer_id") or (self.get_spool(sid) or {}).get("printer_id"), tray)
+        if data:
+            cols = ", ".join(f"{k}=?" for k in data)
+            self._q(f"UPDATE spools SET {cols} WHERE id=?", (*data.values(), sid))
+        return self.get_spool(sid)
+
+    def assign_tray(self, sid: int, printer_id: str | None, tray: int | None) -> None:
+        """Un carrete por bandeja: libera la bandeja si otro carrete la tenía."""
+        if tray is not None:
+            self._q("UPDATE spools SET tray=NULL WHERE printer_id=? AND tray=? AND id<>?", (printer_id, tray, sid))
+        self._q("UPDATE spools SET tray=?, printer_id=? WHERE id=?", (tray, printer_id, sid))
+
+    def spool_in_tray(self, printer_id: str, tray: int) -> dict | None:
+        rows = self._q("SELECT * FROM spools WHERE printer_id=? AND tray=? AND archived=0", (printer_id, tray))
+        return dict(rows[0]) if rows else None
+
+    def delete_spool(self, sid: int) -> None:
+        self._q("DELETE FROM spools WHERE id=?", (sid,))
+
+    def consume(self, sid: int, grams: float) -> dict | None:
+        self._q("UPDATE spools SET remaining_g=MAX(0, remaining_g-?) WHERE id=?", (grams, sid))
+        return self.get_spool(sid)
