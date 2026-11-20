@@ -72,6 +72,18 @@ async def main(model: str = "A1") -> int:
         print(f"OK en {time.time() - t0:.0f} s: {result.stat().st_size // 1024} KB, "
               f"{len(meta['plates'])} placa(s), tiempo estimado {plate['prediction_s']} s, "
               f"{plate['weight_g']} g, miniatura: {plate['thumbnail']}, filamentos: {plate['filaments']}")
+        from collections import Counter
+
+        from ..library.preview import build_preview
+
+        import json as _json
+        prev = _json.loads(build_preview(result, 1, work / "prev"))
+        types = Counter(p["t"] for layer in prev["layers"] for p in layer["paths"])
+        print(f"Vista previa: {len(prev['layers'])} capas, {prev['points']} puntos, bbox {prev['bbox']}, "
+              f"tipos {dict(types)}")
+        if len(prev["layers"]) < 50 or "ow" not in types:
+            print("ERROR: la vista previa no reconoce bien el G-code de OrcaSlicer")
+            return 1
         return 0 if meta["sliced"] else 1
 
 

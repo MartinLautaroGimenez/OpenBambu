@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from . import __version__
 from .api.catalog import router as catalog_router
@@ -32,6 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await mgr.stop()
 
     app = FastAPI(title="OpenBambu", version=__version__, lifespan=lifespan)
+    app.add_middleware(GZipMiddleware, minimum_size=2048)
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     app.include_router(router)
     app.include_router(files_router)

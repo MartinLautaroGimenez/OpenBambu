@@ -82,6 +82,24 @@ async def thumbnail(lid: str, plate: int, mgr: PrinterManager = Depends(manager)
     return Response(png, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
 
 
+@router.get("/library/{lid}/plates/{plate}/preview")
+async def gcode_preview(lid: str, plate: int, mgr: PrinterManager = Depends(manager)):
+    """Trayectorias por capa para la vista previa del G-code."""
+    import asyncio
+
+    from ..library.preview import PreviewError, build_preview
+
+    item = _item(mgr, lid)
+    if not item["meta"].get("sliced"):
+        raise HTTPException(422, "El archivo no está laminado")
+    try:
+        body = await asyncio.to_thread(build_preview, mgr.store.file_path(item), plate,
+                                       Path(mgr.settings.data_dir) / "cache" / "preview")
+    except PreviewError as e:
+        raise HTTPException(422, str(e)) from e
+    return Response(body, media_type="application/json", headers={"Cache-Control": "max-age=86400"})
+
+
 @router.delete("/library/{lid}")
 async def delete_library_item(lid: str, mgr: PrinterManager = Depends(manager)):
     item = _item(mgr, lid)
