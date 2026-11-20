@@ -220,3 +220,8 @@ def project_file(
             "ams_mapping2": ams_mapping2,
         }
     }
+
+
+def skip_objects(ids: list[int]) -> dict:
+    """Omitir objetos de la impresión en curso (lista completa de los omitidos)."""
+    return {"print": {"command": "skip_objects", "obj_list": [int(i) for i in ids]}}

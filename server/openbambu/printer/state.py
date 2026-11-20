@@ -163,6 +163,7 @@ def normalize(raw: dict, model: str, connected: bool, updated_at: float) -> dict
         "wifi_signal": p.get("wifi_signal"),
         "nozzle_diameter": p.get("nozzle_diameter"),
         "sdcard": p.get("sdcard"),
+        "skipped_objects": [_i(x) for x in p.get("s_obj") or []],
     }
 
 

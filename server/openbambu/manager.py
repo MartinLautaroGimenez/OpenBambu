@@ -53,6 +53,8 @@ class PrinterManager:
         self.history = HistoryRecorder(self.store, self.printers, Path(settings.data_dir))
         self.power = PowerManager(settings.data_dir, self.printers, emit=self._power_event)
         self.queue.power = self.power
+        from .library.objects import ObjectsService
+        self.objects = ObjectsService(self)
         self.catalog = CatalogService(settings.catalog, self.store)
         # Token de MakerWorld guardado desde la app (tiene prioridad sobre config.yaml)
         from .catalog.bambu_auth import load_secrets

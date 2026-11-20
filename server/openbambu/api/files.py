@@ -169,6 +169,35 @@ async def import_sd(body: ImportIn, p: BasePrinter = Depends(printer), mgr: Prin
     return _public(_ingest(mgr, lid, folder, filename, f"printer:{p.cfg.id}"))
 
 
+# ---- omitir objetos ------------------------------------------------------------
+class SkipIn(BaseModel):
+    ids: list[int] = Field(min_length=1)
+
+
+@router.get("/printers/{printer_id}/objects")
+async def printing_objects(printer_id: str, p: BasePrinter = Depends(printer), mgr: PrinterManager = Depends(manager)):
+    from ..library.objects import ObjectsError
+
+    try:
+        return await mgr.objects.objects(printer_id)
+    except ObjectsError as e:
+        raise HTTPException(409, str(e)) from e
+
+
+@router.post("/printers/{printer_id}/objects/skip")
+async def skip_objects(body: SkipIn, printer_id: str, p: BasePrinter = Depends(printer),
+                       mgr: PrinterManager = Depends(manager)):
+    from ..library.objects import ObjectsError
+
+    try:
+        await mgr.objects.skip(printer_id, body.ids)
+        return await mgr.objects.objects(printer_id)
+    except ObjectsError as e:
+        raise HTTPException(422, str(e)) from e
+    except ConnectionError as e:
+        raise HTTPException(503, str(e)) from e
+
+
 # ---- cola --------------------------------------------------------------------
 class MappingIn(BaseModel):
     filament_id: int

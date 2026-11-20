@@ -99,3 +99,23 @@ def read_thumbnail(path: Path, plate: int) -> bytes | None:
     except zipfile.BadZipFile:
         return None
     return None
+
+
+def read_plate_objects(path: Path, plate: int) -> list[dict]:
+    """Objetos de una placa según ``Metadata/plate_N.json`` (id = identify_id para omitirlos)."""
+    import json
+
+    try:
+        with zipfile.ZipFile(path) as zf:
+            data = json.loads(zf.read(f"Metadata/plate_{plate}.json"))
+    except (KeyError, ValueError, zipfile.BadZipFile, OSError):
+        return []
+    out = []
+    for o in data.get("bbox_objects") or []:
+        try:
+            bbox = [round(float(v), 1) for v in o.get("bbox", [])[:4]]
+        except (TypeError, ValueError):
+            bbox = []
+        if "id" in o:
+            out.append({"id": int(o["id"]), "name": o.get("name") or None, "bbox": bbox if len(bbox) == 4 else None})
+    return out

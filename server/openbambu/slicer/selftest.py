@@ -81,6 +81,14 @@ async def main(model: str = "A1") -> int:
         types = Counter(p["t"] for layer in prev["layers"] for p in layer["paths"])
         print(f"Vista previa: {len(prev['layers'])} capas, {prev['points']} puntos, bbox {prev['bbox']}, "
               f"tipos {dict(types)}")
+        from ..library.threemf import read_plate_objects
+
+        plate_objs = read_plate_objects(result, 1)
+        print(f"Objetos (plate_1.json): {[(o['id'], o['name']) for o in plate_objs]}")
+        print(f"Objetos (G-code): {[(o['id'], o.get('name')) for o in prev.get('objects', [])]}")
+        if max(len(plate_objs), len(prev.get("objects", []))) < 2:
+            print("ERROR: no se identifican los objetos para poder omitirlos")
+            return 1
         if len(prev["layers"]) < 50 or "ow" not in types:
             print("ERROR: la vista previa no reconoce bien el G-code de OrcaSlicer")
             return 1

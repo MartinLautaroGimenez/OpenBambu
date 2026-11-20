@@ -27,6 +27,9 @@ SKIP_LAYERS_LIMIT = 4000
 MAX_POINTS = 900_000
 
 _NUM = re.compile(r"([XYZEIJR])(-?\d*\.?\d+)")
+# Marcas de objeto (para "omitir objetos"): Bambu Studio y OrcaSlicer
+_OBJ_START = re.compile(r"(?:start printing object, unique label id:\s*(\d+))|(?:^printing object (.*?) id:\s*(\d+))", re.I)
+_OBJ_STOP = re.compile(r"stop printing object", re.I)
 
 
 class PreviewError(ValueError):
@@ -40,7 +43,9 @@ def _feature(comment: str) -> str:
 def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
     layers: list[dict] = []
     cur: dict | None = None
-    paths: dict[tuple[str, int], list[list[int]]] = {}
+    paths: dict[tuple[str, int, int], list[list[int]]] = {}
+    objects: dict[int, dict] = {}
+    obj = -1
     x = y = 0.0
     z = 0.0
     absolute = True
@@ -57,7 +62,8 @@ def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
     def close_layer():
         nonlocal paths, open_poly, open_key
         if cur is not None:
-            cur["paths"] = [{"t": k[0], "f": k[1], "p": p} for k, polys in paths.items() for p in polys if len(p) >= 4]
+            cur["paths"] = [{"t": k[0], "f": k[1], "p": p, **({"o": k[2]} if k[2] >= 0 else {})}
+                            for k, polys in paths.items() for p in polys if len(p) >= 4]
             if cur["paths"]:
                 layers.append(cur)
         paths = {}
@@ -86,6 +92,15 @@ def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
                     z = zv
                 except ValueError:
                     pass
+            elif m := _OBJ_START.search(c):
+                obj = int(m[1] or m[3])
+                if obj not in objects:
+                    objects[obj] = {"id": obj, "name": (m[2] or "").strip() or None,
+                                    "bbox": [1e9, 1e9, -1e9, -1e9]}
+                open_poly = None
+            elif _OBJ_STOP.search(c):
+                obj = -1
+                open_poly = None
             elif cu.startswith("FEATURE:") or cu.startswith("TYPE:"):
                 feature = _feature(c.split(":", 1)[1])
                 open_poly = None
@@ -117,7 +132,7 @@ def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
                 pts = [(nx, ny)]
                 if head in ("G2", "G3") and ("I" in args or "J" in args):
                     pts = _arc(x, y, nx, ny, args.get("I", 0.0), args.get("J", 0.0), head == "G2")
-                key = (feature, tool)
+                key = (feature, tool, obj)
                 if open_poly is None or open_key != key:
                     open_poly = [round(x * 10), round(y * 10)]
                     open_key = key
@@ -128,6 +143,10 @@ def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
                     if frame:
                         min_x, max_x = min(min_x, px), max(max_x, px)
                         min_y, max_y = min(min_y, py), max(max_y, py)
+                        if obj >= 0:
+                            b = objects[obj]["bbox"]
+                            b[0], b[1] = min(b[0], px), min(b[1], py)
+                            b[2], b[3] = max(b[2], px), max(b[3], py)
                 total += len(pts)
             elif nx != x or ny != y:
                 open_poly = None  # desplazamiento sin extruir: corta la polilínea
@@ -143,6 +162,7 @@ def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
         "layers": layers,
         "bbox": [round(min_x, 1), round(min_y, 1), round(max_x, 1), round(max_y, 1)],
         "points": total,
+        "objects": [{**o, "bbox": [round(v, 1) for v in o["bbox"]]} for o in objects.values() if o["bbox"][0] < 1e8],
         "truncated": total >= max_points,
     }
 

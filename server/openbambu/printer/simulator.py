@@ -170,6 +170,7 @@ class SimulatedPrinter(BasePrinter):
             nozzle_target_temper=220,
             bed_target_temper=65,
             print_error=0,
+            s_obj=[],
         )
         self.p["ams"]["tray_now"] = "0"
         self.p["ams"]["ams"][0]["tray"][0]["remain"] = 92
@@ -236,6 +237,8 @@ class SimulatedPrinter(BasePrinter):
             if not self._files._p(cmd["file"]).exists():
                 return {"result": "failed"}
             self._start_job(cmd.get("subtask_name") or cmd["file"], f"/sdcard/{cmd['file']}")
+        elif name == "skip_objects":
+            p["s_obj"] = sorted(set(p.get("s_obj", [])) | {int(i) for i in cmd["obj_list"]})
         elif name == "print_speed":
             p["spd_lvl"] = int(cmd["param"])
             p["spd_mag"] = {1: 50, 2: 100, 3: 124, 4: 166}[p["spd_lvl"]]
