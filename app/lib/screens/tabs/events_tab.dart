@@ -92,6 +92,8 @@ class _EventTile extends StatelessWidget {
     'filament_runout': Icons.report_rounded,
     'hms': Icons.warning_rounded,
     'offline': Icons.wifi_off_rounded,
+    'queue_bed_clear': Icons.cleaning_services_rounded,
+    'queue_error': Icons.playlist_remove_rounded,
   };
 
   @override

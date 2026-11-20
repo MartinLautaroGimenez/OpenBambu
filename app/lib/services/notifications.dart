@@ -1,7 +1,28 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../api/client.dart';
 import '../api/models.dart';
+import 'settings_store.dart';
+
+const bedClearAction = 'bed_clear';
+
+/// Botones de las notificaciones. Corre en un isolate aparte si la app está
+/// cerrada, por eso lee el servidor y el token de las preferencias.
+@pragma('vm:entry-point')
+Future<void> onNotificationAction(NotificationResponse r) async {
+  if (r.actionId != bedClearAction || r.payload == null) return;
+  final store = SettingsStore(await SharedPreferences.getInstance());
+  if (!store.configured) return;
+  final api = ApiClient(store.serverUrl, store.token);
+  try {
+    await api.bedClear(r.payload!);
+  } finally {
+    api.close();
+  }
+}
 
 /// Notificaciones locales. Se usa tanto desde la app como desde el servicio en
 /// segundo plano (que corre en otro isolate y necesita inicializarlo de nuevo).
@@ -33,6 +54,8 @@ class Notifications {
           requestSoundPermission: false,
         ),
       ),
+      onDidReceiveNotificationResponse: onNotificationAction,
+      onDidReceiveBackgroundNotificationResponse: onNotificationAction,
     );
     final android = plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     await android?.createNotificationChannel(
@@ -140,8 +163,10 @@ class Notifications {
     if (!supported) return;
     await init();
     final alert = e.severity == 'error' || e.severity == 'warning';
+    final bedClear = e.type == 'queue_bed_clear';
     await plugin.show(
-      id: e.id % 0x7FFFFFFF,
+      id: bedClear ? 0x0BEDC1EA : e.id % 0x7FFFFFFF,
+      payload: e.printerId,
       title: '${e.printerName}: ${e.title}',
       body: e.message,
       notificationDetails: NotificationDetails(
@@ -151,6 +176,9 @@ class Notifications {
           importance: alert ? Importance.max : Importance.defaultImportance,
           priority: alert ? Priority.high : Priority.defaultPriority,
           styleInformation: BigTextStyleInformation(e.message),
+          actions: bedClear
+              ? const [AndroidNotificationAction(bedClearAction, 'Cama libre', cancelNotification: true)]
+              : null,
           category: alert ? AndroidNotificationCategory.error : AndroidNotificationCategory.status,
         ),
         iOS: DarwinNotificationDetails(

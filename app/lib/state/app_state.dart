@@ -26,6 +26,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   String? connError;
   final Map<String, Printer> printers = {};
   final List<PrinterEvent> events = [];
+  final Map<String, QueueState> queues = {};
+  final Map<String, bool> _queueLoading = {};
   String? selectedId;
 
   /// Último evento recibido en vivo (para mostrarlo como aviso en pantalla).
@@ -61,6 +63,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     await store.clear();
     printers.clear();
     events.clear();
+    queues.clear();
     api = null;
     notifyListeners();
   }
@@ -102,6 +105,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       conn = ConnState.connected;
       connError = null;
       _backoff = 1;
+      for (final id in printers.keys) {
+        refreshQueue(id);
+      }
     } catch (e) {
       connError = e is ApiException ? e.message : 'No se pudo conectar al servidor';
       conn = ConnState.disconnected;
@@ -119,6 +125,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           p.status = PrinterStatus.fromJson(msg['data']);
           notifyListeners();
         }
+      case 'queue':
+        refreshQueue(msg['printer_id']);
       case 'event':
         final e = PrinterEvent.fromJson(msg['data']);
         events.insert(0, e);
@@ -174,6 +182,28 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (fg == _foreground) return;
     _foreground = fg;
     if (fg && store.configured && conn == ConnState.disconnected) retryNow();
+  }
+
+  // ---- cola -------------------------------------------------------------
+  QueueState queueOf(String printerId) => queues[printerId] ?? QueueState.empty();
+
+  Future<void> refreshQueue(String printerId) async {
+    final a = api;
+    if (a == null || _queueLoading[printerId] == true) return;
+    _queueLoading[printerId] = true;
+    try {
+      queues[printerId] = await a.queue(printerId);
+      notifyListeners();
+    } catch (_) {
+      // se reintenta con el próximo aviso del servidor
+    } finally {
+      _queueLoading[printerId] = false;
+    }
+  }
+
+  void setQueue(String printerId, QueueState q) {
+    queues[printerId] = q;
+    notifyListeners();
   }
 
   // ---- acciones --------------------------------------------------------

@@ -104,6 +104,115 @@ class ApiClient {
 
   Future<void> testNotification() => _req('POST', '/notifications/test');
 
+  // ---- biblioteca -----------------------------------------------------
+  Future<List<LibraryItem>> library() async => [
+    for (final x in (await _req('GET', '/library')) as List) LibraryItem.fromJson(x),
+  ];
+
+  Uri thumbnail(String libraryId, int plate) =>
+      uri('/library/$libraryId/plates/$plate/thumbnail.png', {'token': token});
+
+  Future<void> deleteLibraryItem(String id) => _req('DELETE', '/library/$id');
+
+  /// Sube un archivo a la biblioteca enviando el contenido en streaming.
+  Future<LibraryItem> uploadLibrary(
+    String filename,
+    int length,
+    Stream<List<int>> data, {
+    void Function(double progress)? onProgress,
+  }) async {
+    final req = http.StreamedRequest('PUT', uri('/library', {'filename': filename}))
+      ..headers['Authorization'] = 'Bearer $token'
+      ..headers['Content-Type'] = 'application/octet-stream'
+      ..contentLength = length;
+    var sent = 0;
+    data.listen(
+      (chunk) {
+        req.sink.add(chunk);
+        sent += chunk.length;
+        if (length > 0) onProgress?.call(sent / length);
+      },
+      onDone: req.sink.close,
+      onError: req.sink.addError,
+      cancelOnError: true,
+    );
+    final res = await http.Response.fromStream(await _http.send(req));
+    final text = utf8.decode(res.bodyBytes);
+    if (res.statusCode >= 400) {
+      String msg = 'Error ${res.statusCode}';
+      try {
+        msg = jsonDecode(text)['detail'];
+      } catch (_) {}
+      throw ApiException(msg, res.statusCode);
+    }
+    return LibraryItem.fromJson(jsonDecode(text));
+  }
+
+  Future<List<TrayAssignment>> suggestMapping(String libraryId, String printerId, int plate) async => [
+    for (final x in (await _req(
+      'GET',
+      '/library/$libraryId/mapping',
+      query: {'printer_id': printerId, 'plate': '$plate'},
+    )) as List)
+      TrayAssignment.fromJson(x),
+  ];
+
+  // ---- tarjeta SD -----------------------------------------------------
+  Future<List<SdFile>> sdFiles(String printerId, String path) async => [
+    for (final x in (await _req('GET', '/printers/$printerId/files', query: {'path': path})) as List)
+      SdFile.fromJson(x),
+  ];
+
+  Future<void> deleteSdFile(String printerId, String path) =>
+      _req('DELETE', '/printers/$printerId/files', query: {'path': path});
+
+  Future<LibraryItem> importSdFile(String printerId, String path) async =>
+      LibraryItem.fromJson(await _req('POST', '/printers/$printerId/files/import', body: {'path': path}));
+
+  // ---- cola -----------------------------------------------------------
+  Future<QueueState> queue(String printerId) async =>
+      QueueState.fromJson(await _req('GET', '/printers/$printerId/queue'));
+
+  Future<QueueState> addJob(
+    String printerId, {
+    required String libraryId,
+    required int plate,
+    required List<TrayAssignment> mapping,
+    required Map<String, bool> options,
+    int copies = 1,
+    bool startNow = false,
+    bool bedClear = false,
+  }) async => QueueState.fromJson(
+    await _req(
+      'POST',
+      '/printers/$printerId/queue',
+      body: {
+        'library_id': libraryId,
+        'plate': plate,
+        'mapping': [for (final m in mapping) m.toJson()],
+        'options': options,
+        'copies': copies,
+        'start_now': startNow,
+        'bed_clear': bedClear,
+      },
+    ),
+  );
+
+  Future<QueueState> deleteJob(String printerId, int jobId) async =>
+      QueueState.fromJson(await _req('DELETE', '/printers/$printerId/queue/$jobId'));
+
+  Future<QueueState> reorderQueue(String printerId, List<int> ids) async =>
+      QueueState.fromJson(await _req('POST', '/printers/$printerId/queue/reorder', body: {'ids': ids}));
+
+  Future<QueueState> bedClear(String printerId) async =>
+      QueueState.fromJson(await _req('POST', '/printers/$printerId/queue/bed-clear'));
+
+  Future<QueueState> pauseQueue(String printerId, bool paused) async =>
+      QueueState.fromJson(await _req('POST', '/printers/$printerId/queue/pause', body: {'paused': paused}));
+
+  Future<QueueState> clearHistory(String printerId) async =>
+      QueueState.fromJson(await _req('DELETE', '/printers/$printerId/queue'));
+
   // ---- cámara ---------------------------------------------------------
   Uri cameraStream(String id) => uri('/printers/$id/camera/stream.mjpg');
 

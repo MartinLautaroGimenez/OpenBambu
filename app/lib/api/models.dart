@@ -190,3 +190,142 @@ class PrinterEvent {
       progress = j['progress'] == null ? null : _i(j['progress']),
       time = DateTime.fromMillisecondsSinceEpoch((_d(j['ts']) * 1000).round());
 }
+
+// ---- Etapa 2: biblioteca, SD y cola --------------------------------------
+
+class FileFilament {
+  final int id;
+  final String type;
+  final String? color;
+  final double? usedG;
+
+  FileFilament.fromJson(Map<String, dynamic> j)
+    : id = _i(j['id']),
+      type = j['type'] ?? 'PLA',
+      color = j['color'],
+      usedG = j['used_g'] == null ? null : _d(j['used_g']);
+}
+
+class Plate {
+  final int index;
+  final bool thumbnail;
+  final int? predictionS;
+  final double? weightG;
+  final List<FileFilament> filaments;
+
+  Plate.fromJson(Map<String, dynamic> j)
+    : index = _i(j['index'], 1),
+      thumbnail = j['thumbnail'] == true,
+      predictionS = j['prediction_s'] == null ? null : _i(j['prediction_s']),
+      weightG = j['weight_g'] == null ? null : _d(j['weight_g']),
+      filaments = [for (final f in (j['filaments'] as List? ?? [])) FileFilament.fromJson(f)];
+}
+
+class LibraryItem {
+  final String id;
+  final String name;
+  final String filename;
+  final int size;
+  final DateTime added;
+  final String source;
+  final bool sliced;
+  final List<Plate> plates;
+
+  LibraryItem.fromJson(Map<String, dynamic> j)
+    : id = j['id'],
+      name = j['name'] ?? '',
+      filename = j['filename'] ?? '',
+      size = _i(j['size']),
+      added = DateTime.fromMillisecondsSinceEpoch((_d(j['added']) * 1000).round()),
+      source = j['source'] ?? 'upload',
+      sliced = (j['meta'] ?? const {})['sliced'] == true,
+      plates = [for (final p in ((j['meta'] ?? const {})['plates'] as List? ?? [])) Plate.fromJson(p)];
+}
+
+class SdFile {
+  final String name;
+  final String path;
+  final bool isDir;
+  final int size;
+  final DateTime? modified;
+  final bool printable;
+
+  SdFile.fromJson(Map<String, dynamic> j)
+    : name = j['name'] ?? '',
+      path = j['path'] ?? '',
+      isDir = j['is_dir'] == true,
+      size = _i(j['size']),
+      modified = j['modified'] == null ? null : DateTime.fromMillisecondsSinceEpoch((_d(j['modified']) * 1000).round()),
+      printable = j['printable'] == true;
+}
+
+class TrayAssignment {
+  final int filamentId;
+  int? tray;
+  final String reason;
+
+  TrayAssignment(this.filamentId, this.tray, [this.reason = '']);
+
+  TrayAssignment.fromJson(Map<String, dynamic> j)
+    : filamentId = _i(j['filament_id']),
+      tray = j['tray'] == null ? null : _i(j['tray']),
+      reason = j['reason'] ?? '';
+
+  Map<String, dynamic> toJson() => {'filament_id': filamentId, 'tray': tray};
+}
+
+class QueueJob {
+  final int id;
+  final String libraryId;
+  final String name;
+  final int plate;
+  final String status;
+  final String? error;
+  final double? uploadProgress;
+  final DateTime created;
+  final DateTime? finished;
+
+  QueueJob.fromJson(Map<String, dynamic> j)
+    : id = _i(j['id']),
+      libraryId = j['library_id'] ?? '',
+      name = j['name'] ?? '',
+      plate = _i(j['plate'], 1),
+      status = j['status'] ?? 'queued',
+      error = j['error'],
+      uploadProgress = j['upload_progress'] == null ? null : _d(j['upload_progress']),
+      created = DateTime.fromMillisecondsSinceEpoch((_d(j['created']) * 1000).round()),
+      finished = j['finished'] == null ? null : DateTime.fromMillisecondsSinceEpoch((_d(j['finished']) * 1000).round());
+
+  bool get isQueued => status == 'queued';
+  bool get isActive => status == 'uploading' || status == 'starting' || status == 'printing';
+  bool get isHistory => !isQueued && !isActive;
+
+  String get statusLabel => switch (status) {
+    'queued' => 'En cola',
+    'uploading' => 'Subiendo',
+    'starting' => 'Iniciando',
+    'printing' => 'Imprimiendo',
+    'done' => 'Terminado',
+    'failed' => 'Falló',
+    'cancelled' => 'Cancelado',
+    _ => status,
+  };
+}
+
+class QueueState {
+  final bool paused;
+  final bool bedClear;
+  final bool waitingBedClear;
+  final List<QueueJob> jobs;
+
+  QueueState.fromJson(Map<String, dynamic> j)
+    : paused = j['paused'] == true,
+      bedClear = j['bed_clear'] == true,
+      waitingBedClear = j['waiting_bed_clear'] == true,
+      jobs = [for (final x in (j['jobs'] as List? ?? [])) QueueJob.fromJson(x)];
+
+  QueueState.empty() : paused = false, bedClear = false, waitingBedClear = false, jobs = const [];
+
+  List<QueueJob> get pending => jobs.where((j) => !j.isHistory).toList();
+  List<QueueJob> get history => jobs.where((j) => j.isHistory).toList();
+}

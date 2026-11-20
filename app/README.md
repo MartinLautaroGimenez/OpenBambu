@@ -5,6 +5,9 @@ App Flutter (Android e iOS) para controlar la impresora a través del servidor O
 ## Instalar
 
 ### Android
+La forma más simple: en GitHub, **Releases → OpenBambu APK** y descargá `OpenBambu.apk` desde el celular (hay que permitir "instalar apps desconocidas"). GitHub Actions lo recompila con cada cambio.
+
+Para compilarlo vos:
 ```bash
 flutter build apk --release
 # instalar build/app/outputs/flutter-apk/app-release.apk en el teléfono

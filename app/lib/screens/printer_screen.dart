@@ -11,6 +11,7 @@ import 'settings_screen.dart';
 import 'tabs/ams_tab.dart';
 import 'tabs/control_tab.dart';
 import 'tabs/events_tab.dart';
+import 'tabs/print_tab.dart';
 import 'tabs/status_tab.dart';
 
 class PrinterScreen extends StatefulWidget {
@@ -84,6 +85,7 @@ class _PrinterScreenState extends State<PrinterScreen> {
                     children: [
                       StatusTab(printer: p, onOpenControl: () => setState(() => _tab = 1)),
                       ControlTab(printer: p),
+                      PrintTab(printer: p),
                       AmsTab(printer: p),
                       EventsTab(printer: p),
                     ],
@@ -104,6 +106,14 @@ class _PrinterScreenState extends State<PrinterScreen> {
             icon: Icon(Icons.tune_outlined),
             selectedIcon: Icon(Icons.tune_rounded),
             label: 'Control',
+          ),
+          NavigationDestination(
+            icon: Badge(
+              isLabelVisible: p != null && s.queueOf(p.id).waitingBedClear,
+              child: const Icon(Icons.print_outlined),
+            ),
+            selectedIcon: const Icon(Icons.print_rounded),
+            label: 'Imprimir',
           ),
           const NavigationDestination(
             icon: Icon(Icons.palette_outlined),
