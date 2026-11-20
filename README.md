@@ -17,6 +17,7 @@ Software libre para controlar impresoras **Bambu Lab** (pensado para la **A1**, 
 | 🎨 **AMS / AMS lite** | Colores, tipo, % restante, bandeja activa, cargar/descargar, editar tipo y color, reintentar |
 | 📂 **Archivos** | Biblioteca en el servidor (subís .gcode.3mf desde el teléfono, con miniatura, tiempo, peso y colores) y explorador de la tarjeta SD |
 | 🧾 **Cola de impresión** | Copias, reordenar, pausar; entre trabajo y trabajo espera que confirmes **"cama libre"** (también desde la notificación) |
+| 🧩 **Laminador en el servidor** | Subís un STL/OBJ/STEP/3MF y lo laminás desde el teléfono con **OrcaSlicer** y los perfiles oficiales de la A1: calidad, filamento, relleno y patrón, soportes, brim, paredes y copias en la misma placa |
 | 🎯 **Mapeo de AMS** | Asigna cada filamento del archivo a una bandeja por tipo y color; el **TPU va al carrete externo** (el AMS lite no lo admite) |
 | 🔔 **Notificaciones** | Notificación persistente con **barra de progreso** (Live Update en Android 16), avisos de inicio, pausa, fin, falla, filamento agotado, primera capa y errores HMS. Push opcional vía **ntfy** con captura de la cámara |
 
@@ -80,6 +81,8 @@ Todas las rutas (salvo `/api/health`) requieren `Authorization: Bearer <token>` 
 | GET/DELETE | `/api/printers/{id}/files?path=` · POST `/files/import` | Tarjeta SD (FTPS) |
 | GET/POST | `/api/printers/{id}/queue` | Cola (agregar con `library_id`, `plate`, `mapping`, `options`, `copies`, `start_now`) |
 | POST | `/api/printers/{id}/queue/bed-clear` · `/pause` · `/reorder` | Confirmar cama libre, pausar, reordenar |
+| GET | `/api/slicer` · `/api/slicer/profiles?printer_id=` | Estado del laminador y perfiles de calidad/filamento |
+| POST | `/api/library/{id}/slice` · GET `/api/slicer/jobs/{job}` | Laminar un modelo y seguir el progreso |
 | GET | `/api/events?after=<id>` | Historial de eventos |
 | WS | `/api/ws?token=` | Estado y eventos en tiempo real |
 
@@ -101,7 +104,7 @@ cd app && flutter pub get && flutter test && flutter run
 
 - [x] **Etapa 1**: servidor, conexión LAN, estado, control, cámara, AMS, eventos y notificaciones
 - [x] **Etapa 2: archivos y cola**: biblioteca, tarjeta SD (FTPS), impresión con mapeo de AMS y carrete externo, cola con confirmación de "cama libre"
-- [ ] **Etapa 3: laminado**: OrcaSlicer en modo consola dentro del contenedor, perfiles de la A1, parámetros (altura de capa, relleno, soportes, brim, copias), vista previa y tiempo y filamento estimados
+- [x] **Etapa 3: laminado**: OrcaSlicer 2.5 en el contenedor (amd64 y arm64), perfiles de la A1, relleno, soportes, brim, paredes, copias, tiempo y peso estimados
 - [ ] **Etapa 4: catálogo de modelos**: buscador unificado (MakerWorld, Printables, Thingiverse, Thangs), descargar, laminar e imprimir desde el teléfono
 - [ ] **Etapa 5: iOS**: Live Activities con progreso en la pantalla de bloqueo y la Dynamic Island, y push con APNs
 - [ ] Cámara RTSP de la serie X1

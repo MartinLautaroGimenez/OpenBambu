@@ -34,6 +34,17 @@ El instalador:
 
 El servidor arranca solo cada vez que se enciende la Pi.
 
+## Probar el laminador
+
+```bash
+cd ~/openbambu
+sudo docker compose exec openbambu python3 -m openbambu.slicer.selftest
+```
+Lamina un cubo de prueba con los perfiles de la A1. En una Pi 4 tarda alrededor de un minuto.
+
+> La imagen con OrcaSlicer ocupa unos 1,5 GB. Si la tarjeta SD es chica, se puede construir sin
+> laminador: en `docker-compose.yml`, `build: { context: ./server, args: { WITH_SLICER: "0" } }`.
+
 ## Comandos útiles
 
 ```bash
