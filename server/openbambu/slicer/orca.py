@@ -98,7 +98,10 @@ async def run_orca(
         cmd = ["xvfb-run", "-a", "-s", "-screen 0 1024x768x24", *cmd]
     log.info("Laminando: %s", " ".join(cmd))
 
-    env = {**os.environ, "HOME": str(workdir), "LC_ALL": "C.UTF-8", "APPIMAGE_EXTRACT_AND_RUN": "1"}
+    runtime = workdir / "xdg"
+    runtime.mkdir(mode=0o700, exist_ok=True)
+    env = {**os.environ, "HOME": str(workdir), "LC_ALL": "C.UTF-8", "APPIMAGE_EXTRACT_AND_RUN": "1",
+           "XDG_RUNTIME_DIR": str(runtime)}
     proc = await asyncio.create_subprocess_exec(
         *cmd, cwd=workdir, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
     )
