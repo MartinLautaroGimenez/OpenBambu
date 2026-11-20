@@ -44,11 +44,19 @@ class NotificationsConfig(BaseModel):
     progress_step: int = 25
 
 
+class CatalogConfig(BaseModel):
+    # Token de sesión de MakerWorld (cookie "token") para poder descargar
+    makerworld_token: str = ""
+    # Token de app de Thingiverse (https://www.thingiverse.com/developers)
+    thingiverse_token: str = ""
+
+
 class Settings(BaseModel):
     api_token: str = ""
     data_dir: str = "/data"
     printers: list[PrinterConfig] = []
     notifications: NotificationsConfig = NotificationsConfig()
+    catalog: CatalogConfig = CatalogConfig()
 
 
 def _env_printer() -> PrinterConfig | None:
@@ -87,6 +95,11 @@ def load_settings(path: str | None = None) -> Settings:
         settings.notifications.ntfy.topic = topic
         settings.notifications.ntfy.url = os.getenv("OB_NTFY_URL", settings.notifications.ntfy.url)
         settings.notifications.ntfy.token = os.getenv("OB_NTFY_TOKEN", "")
+
+    if tok := os.getenv("OB_MAKERWORLD_TOKEN"):
+        settings.catalog.makerworld_token = tok
+    if tok := os.getenv("OB_THINGIVERSE_TOKEN"):
+        settings.catalog.thingiverse_token = tok
 
     if not settings.api_token:
         settings.api_token = _persisted_token(Path(settings.data_dir))

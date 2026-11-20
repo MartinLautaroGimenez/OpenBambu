@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
+from .api.catalog import router as catalog_router
 from .api.files import router as files_router
 from .api.routes import router
 from .api.slicer import router as slicer_router
@@ -33,6 +34,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(files_router)
     app.include_router(slicer_router)
+    app.include_router(catalog_router)
     return app
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import posixpath
-import re
 import shutil
 from pathlib import Path
 
@@ -12,7 +11,8 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from ..library.mapping import suggest_mapping
-from ..library.threemf import InvalidFile, read_3mf, read_thumbnail
+from ..library.ingest import UPLOAD_EXT, ingest, safe_name
+from ..library.threemf import InvalidFile, read_thumbnail
 from ..manager import PrinterManager
 from ..printer.base import BasePrinter
 from .routes import auth, manager, printer
@@ -20,20 +20,10 @@ from .routes import auth, manager, printer
 router = APIRouter(prefix="/api", dependencies=[Depends(auth)])
 
 MAX_UPLOAD = 1024 * 1024 * 1024  # 1 GB
-UPLOAD_EXT = (".3mf", ".stl", ".obj", ".step", ".stp")
 
 
 def _safe_name(name: str) -> str:
-    name = Path(name).name.strip()
-    name = re.sub(r"[^\w.\- ()áéíóúñÁÉÍÓÚÑ]", "_", name)
-    return name or "archivo.3mf"
-
-
-def _display_name(filename: str) -> str:
-    for ext in (".gcode.3mf", ".3mf", ".gcode", ".stl", ".obj", ".step", ".stp"):
-        if filename.lower().endswith(ext):
-            return filename[: -len(ext)]
-    return filename
+    return safe_name(name)
 
 
 def _public(item: dict) -> dict:
@@ -41,17 +31,10 @@ def _public(item: dict) -> dict:
 
 
 def _ingest(mgr: PrinterManager, lid: str, folder: Path, filename: str, source: str) -> dict:
-    path = folder / filename
-    if not filename.lower().endswith(".3mf"):
-        # Modelo sin laminar (STL/OBJ/STEP): se lamina en el servidor
-        return mgr.store.insert_file(lid, _display_name(filename), filename, path.stat().st_size, source,
-                                     {"sliced": False, "plates": [], "format": Path(filename).suffix[1:].lower()})
     try:
-        meta = read_3mf(path)
+        return ingest(mgr.store, lid, folder, filename, source)
     except InvalidFile as e:
-        shutil.rmtree(folder, ignore_errors=True)
         raise HTTPException(422, str(e)) from e
-    return mgr.store.insert_file(lid, _display_name(filename), filename, path.stat().st_size, source, meta)
 
 
 # ---- biblioteca --------------------------------------------------------------
