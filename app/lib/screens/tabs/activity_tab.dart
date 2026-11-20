@@ -6,6 +6,7 @@ import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../print_screen.dart';
+import '../timelapse_screen.dart';
 import 'events_tab.dart';
 
 String money(double v) {
@@ -147,9 +148,20 @@ class _PrintCard extends StatelessWidget {
               width: 96,
               height: 96,
               color: t.colorScheme.surfaceContainer,
-              child: rec.snapshot && api != null
-                  ? Image.network(api.historySnapshot(rec.id), fit: BoxFit.cover)
-                  : Icon(Icons.photo_camera_outlined, color: t.colorScheme.outline),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  rec.snapshot && api != null
+                      ? Image.network(api.historySnapshot(rec.id), fit: BoxFit.cover)
+                      : Icon(Icons.photo_camera_outlined, color: t.colorScheme.outline),
+                  if (rec.timelapse)
+                    const Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: Icon(Icons.movie_rounded, size: 18, color: Colors.white),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -224,6 +236,20 @@ class _PrintCard extends StatelessWidget {
                   child: InteractiveViewer(child: Image.network(api.historySnapshot(rec.id), fit: BoxFit.cover)),
                 ),
               ),
+            if (rec.timelapse && api != null) ...[
+              const SizedBox(height: 10),
+              FilledButton.tonalIcon(
+                style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TimelapseScreen(url: api.historyTimelapse(rec.id), title: rec.name),
+                  ),
+                ),
+                icon: const Icon(Icons.movie_rounded),
+                label: const Text('Ver timelapse'),
+              ),
+            ],
             const SizedBox(height: 14),
             Text(rec.name, style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),

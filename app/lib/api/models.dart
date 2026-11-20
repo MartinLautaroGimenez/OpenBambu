@@ -538,6 +538,7 @@ class PrintRecord {
   final String? error;
   final bool snapshot;
   final bool reprintable;
+  final bool timelapse;
 
   PrintRecord.fromJson(Map<String, dynamic> j)
     : id = _i(j['id']),
@@ -554,7 +555,8 @@ class PrintRecord {
       filaments = [for (final f in (j['filaments'] as List? ?? [])) PrintFilament.fromJson(f)],
       error = j['error'],
       snapshot = j['snapshot'] == true,
-      reprintable = j['reprintable'] == true;
+      reprintable = j['reprintable'] == true,
+      timelapse = j['timelapse'] == true;
 
   Duration get duration => (finished ?? DateTime.now()).difference(started);
 

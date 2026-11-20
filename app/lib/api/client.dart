@@ -239,6 +239,14 @@ class ApiClient {
 
   Future<void> deleteHistory(int id) => _req('DELETE', '/history/$id');
 
+  String historyTimelapse(int id) => uri('/history/$id/timelapse.mp4', {'token': token}).toString();
+
+  Future<Map<String, dynamic>> timelapseConfig() async =>
+      (await _req('GET', '/timelapse/config')) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> saveTimelapseConfig(Map<String, dynamic> data) async =>
+      (await _req('PUT', '/timelapse/config', body: data)) as Map<String, dynamic>;
+
   Future<List<Spool>> spools() async => [for (final x in (await _req('GET', '/spools')) as List) Spool.fromJson(x)];
 
   Future<Spool> addSpool(Map<String, dynamic> data) async => Spool.fromJson(await _req('POST', '/spools', body: data));

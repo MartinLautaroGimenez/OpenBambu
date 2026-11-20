@@ -52,6 +52,9 @@ class PrinterManager:
         self.slicer = SliceManager(self.store, self.printers)
         self.history = HistoryRecorder(self.store, self.printers, Path(settings.data_dir))
         self.power = PowerManager(settings.data_dir, self.printers, emit=self._power_event)
+        from .library.timelapse import TimelapseRecorder
+        self.timelapse = TimelapseRecorder(self.store, self.printers, Path(settings.data_dir))
+        self.timelapse.listeners.append(self.history._changed)
         self.queue.power = self.power
         from .library.objects import ObjectsService
         self.objects = ObjectsService(self)
@@ -91,6 +94,7 @@ class PrinterManager:
         printer.add_listener(lambda snap, d=det: self._on_status(d, snap))
         # El historial se registra antes que la cola para asociar el trabajo activo
         printer.add_listener(lambda snap, pid=cfg.id: self.history.on_status(pid, snap))
+        printer.add_listener(lambda snap, pid=cfg.id: self.timelapse.on_status(pid, snap))
         printer.add_listener(lambda snap, pid=cfg.id: self.queue.on_status(pid, snap))
         printer.add_listener(lambda snap, pid=cfg.id: self.power.on_status(pid, snap))
         self.printers[cfg.id] = printer

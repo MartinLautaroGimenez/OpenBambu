@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api", dependencies=[Depends(auth)])
 # ---- historial ---------------------------------------------------------------
 def _with_library(mgr: PrinterManager, p: dict) -> dict:
     p["reprintable"] = bool(p["library_id"] and mgr.store.get_file(p["library_id"]))
+    p["timelapse"] = mgr.timelapse.video_path(p["id"]).exists()
     return p
 
 
@@ -43,7 +44,33 @@ async def history_snapshot(print_id: int, mgr: PrinterManager = Depends(manager)
 async def delete_history(print_id: int, mgr: PrinterManager = Depends(manager)):
     mgr.store.delete_print(print_id)
     mgr.history.snapshot_path(print_id).unlink(missing_ok=True)
+    mgr.timelapse.video_path(print_id).unlink(missing_ok=True)
     return {"ok": True}
+
+
+@router.get("/history/{print_id}/timelapse.mp4")
+async def history_timelapse(print_id: int, mgr: PrinterManager = Depends(manager)):
+    path = mgr.timelapse.video_path(print_id)
+    if not path.exists():
+        raise HTTPException(404, "Esta impresión no tiene timelapse")
+    return FileResponse(path, media_type="video/mp4", filename=f"timelapse_{print_id}.mp4",
+                        content_disposition_type="inline")
+
+
+class TimelapseConfigIn(BaseModel):
+    enabled: bool | None = None
+    fps: int | None = Field(None, ge=5, le=60)
+
+
+@router.get("/timelapse/config")
+async def timelapse_config(mgr: PrinterManager = Depends(manager)):
+    return {**mgr.timelapse.cfg.model_dump(), "available": mgr.timelapse.available()}
+
+
+@router.put("/timelapse/config")
+async def save_timelapse_config(body: TimelapseConfigIn, mgr: PrinterManager = Depends(manager)):
+    mgr.timelapse.save(**body.model_dump())
+    return {**mgr.timelapse.cfg.model_dump(), "available": mgr.timelapse.available()}
 
 
 # ---- inventario de filamento ---------------------------------------------------

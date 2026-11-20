@@ -12,7 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-venv ca-certificates curl tzdata \
+        python3 python3-venv ca-certificates curl tzdata ffmpeg \
     && if [ "$WITH_SLICER" = "1" ]; then apt-get install -y --no-install-recommends \
         xvfb xauth libgtk-3-0t64 libwebkit2gtk-4.1-0 libsoup-3.0-0 libsecret-1-0 \
         libegl1 libgl1 libglu1-mesa libgles2 libgl1-mesa-dri libosmesa6 \

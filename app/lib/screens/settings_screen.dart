@@ -52,6 +52,8 @@ class SettingsScreen extends StatelessWidget {
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrintersScreen())),
             ),
           ),
+          const SectionTitle('Timelapse'),
+          const _TimelapseTile(),
           const SectionTitle('Catálogo'),
           Card(
             child: Column(
@@ -144,6 +146,53 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TimelapseTile extends StatefulWidget {
+  const _TimelapseTile();
+
+  @override
+  State<_TimelapseTile> createState() => _TimelapseTileState();
+}
+
+class _TimelapseTileState extends State<_TimelapseTile> {
+  Map<String, dynamic>? _cfg;
+
+  @override
+  void initState() {
+    super.initState();
+    context
+        .read<AppState>()
+        .api
+        ?.timelapseConfig()
+        .then((c) {
+          if (mounted) setState(() => _cfg = c);
+        })
+        .catchError((_) {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _cfg;
+    return Card(
+      child: SwitchListTile(
+        secondary: const Icon(Icons.movie_rounded),
+        title: const Text('Grabar timelapse'),
+        subtitle: Text(
+          c != null && c['available'] == false
+              ? 'El servidor no tiene ffmpeg: actualizalo'
+              : 'Una foto por capa; el video queda en el historial de cada impresión',
+        ),
+        value: c?['enabled'] == true,
+        onChanged: c == null
+            ? null
+            : (v) async {
+                final r = await context.read<AppState>().api?.saveTimelapseConfig({'enabled': v});
+                if (r != null && mounted) setState(() => _cfg = r);
+              },
       ),
     );
   }
