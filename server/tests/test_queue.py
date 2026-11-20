@@ -163,7 +163,10 @@ def test_start_now_and_sd(client):
 
 
 def test_rejects_non_3mf(client):
-    r = client.put("/api/library?filename=x.stl", content=b"solid", headers=H)
+    r = client.put("/api/library?filename=x.exe", content=b"MZ", headers=H)
     assert r.status_code == 422
+    # Un STL se acepta como modelo sin laminar
+    r = client.put("/api/library?filename=cubo.stl", content=b"solid cubo", headers=H)
+    assert r.status_code == 200 and r.json()["meta"] == {"sliced": False, "plates": [], "format": "stl"}
     r = client.put("/api/library?filename=x.3mf", content=b"not a zip", headers=H)
     assert r.status_code == 422

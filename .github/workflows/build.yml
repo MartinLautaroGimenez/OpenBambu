@@ -27,6 +27,27 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
 
+  # Construye la imagen Docker con OrcaSlicer y lamina un cubo con los perfiles de la A1
+  slicer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64  # Raspberry Pi 4/5
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: Construir imagen (${{ matrix.platform }})
+        run: docker build -t openbambu:test server
+      - name: Autotest del laminador
+        run: docker run --rm openbambu:test python3 -m openbambu.slicer.selftest
+      - name: Autotest A1 mini
+        run: docker run --rm openbambu:test python3 -m openbambu.slicer.selftest A1MINI
+
   android-apk:
     runs-on: ubuntu-latest
     defaults:

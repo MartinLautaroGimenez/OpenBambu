@@ -20,6 +20,7 @@ from .routes import auth, manager, printer
 router = APIRouter(prefix="/api", dependencies=[Depends(auth)])
 
 MAX_UPLOAD = 1024 * 1024 * 1024  # 1 GB
+UPLOAD_EXT = (".3mf", ".stl", ".obj", ".step", ".stp")
 
 
 def _safe_name(name: str) -> str:
@@ -29,7 +30,7 @@ def _safe_name(name: str) -> str:
 
 
 def _display_name(filename: str) -> str:
-    for ext in (".gcode.3mf", ".3mf", ".gcode"):
+    for ext in (".gcode.3mf", ".3mf", ".gcode", ".stl", ".obj", ".step", ".stp"):
         if filename.lower().endswith(ext):
             return filename[: -len(ext)]
     return filename
@@ -41,6 +42,10 @@ def _public(item: dict) -> dict:
 
 def _ingest(mgr: PrinterManager, lid: str, folder: Path, filename: str, source: str) -> dict:
     path = folder / filename
+    if not filename.lower().endswith(".3mf"):
+        # Modelo sin laminar (STL/OBJ/STEP): se lamina en el servidor
+        return mgr.store.insert_file(lid, _display_name(filename), filename, path.stat().st_size, source,
+                                     {"sliced": False, "plates": [], "format": Path(filename).suffix[1:].lower()})
     try:
         meta = read_3mf(path)
     except InvalidFile as e:
@@ -59,8 +64,8 @@ async def list_library(mgr: PrinterManager = Depends(manager)):
 async def upload_library(request: Request, filename: str = Query(...), mgr: PrinterManager = Depends(manager)):
     """Sube un archivo enviando el contenido crudo en el cuerpo del pedido."""
     filename = _safe_name(filename)
-    if not filename.lower().endswith(".3mf"):
-        raise HTTPException(422, "Por ahora solo se aceptan archivos .3mf laminados (.gcode.3mf)")
+    if not filename.lower().endswith(UPLOAD_EXT):
+        raise HTTPException(422, "Formatos aceptados: .3mf, .gcode.3mf, .stl, .obj, .step")
     lid, folder = mgr.store.new_file_dir()
     size = 0
     with open(folder / filename, "wb") as f:

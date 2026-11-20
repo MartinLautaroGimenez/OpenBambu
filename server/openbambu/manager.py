@@ -9,6 +9,7 @@ from pathlib import Path
 from .config import PrinterConfig, Settings
 from .library.queue import QueueManager
 from .library.store import Store
+from .slicer.orca import SliceManager
 from .notify.events import Event, EventBus, EventDetector
 from .notify.ntfy import NtfyNotifier
 from .printer.base import BasePrinter
@@ -37,6 +38,7 @@ class PrinterManager:
         self.bus.notifiers.append(self.ntfy)
         self.store = Store(Path(settings.data_dir))
         self.queue = QueueManager(self.store, self.printers, self.emit)
+        self.slicer = SliceManager(self.store, self.printers)
 
     async def start(self) -> None:
         for cfg in self.settings.printers:
