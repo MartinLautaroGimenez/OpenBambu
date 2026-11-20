@@ -5,6 +5,7 @@ import '../../theme.dart';
 import '../../widgets/camera_view.dart';
 import '../../widgets/common.dart';
 import '../camera_screen.dart';
+import '../skip_objects_screen.dart';
 
 class StatusTab extends StatelessWidget {
   final Printer printer;
@@ -336,6 +337,22 @@ class _JobCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => SkipObjectsScreen(printerId: printer.id)),
+                  ),
+                  icon: const Icon(Icons.layers_clear_rounded),
+                  label: Text(
+                    s.skippedObjects.isEmpty
+                        ? 'Omitir objetos'
+                        : 'Omitir objetos · ${s.skippedObjects.length} omitido(s)',
+                  ),
+                ),
               ),
             ],
           ],

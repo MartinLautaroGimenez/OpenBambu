@@ -144,6 +144,7 @@ class PrinterStatus {
   final Tray? externalSpool;
   final List<Hms> hms;
   final String? wifi;
+  final List<int> skippedObjects;
 
   PrinterStatus.fromJson(Map<String, dynamic> j)
     : connected = j['connected'] == true,
@@ -160,7 +161,8 @@ class PrinterStatus {
       ams = [for (final u in ((j['ams'] ?? const {})['units'] as List? ?? [])) AmsUnit.fromJson(u)],
       externalSpool = (j['ams'] ?? const {})['external'] == null ? null : Tray.fromJson((j['ams'] as Map)['external']),
       hms = [for (final h in (j['hms'] as List? ?? [])) Hms.fromJson(h)],
-      wifi = j['wifi_signal'];
+      wifi = j['wifi_signal'],
+      skippedObjects = [for (final x in (j['skipped_objects'] as List? ?? [])) _i(x)];
 
   bool get isPrinting => state == 'RUNNING' || state == 'PREPARE';
   bool get isPaused => state == 'PAUSE';
