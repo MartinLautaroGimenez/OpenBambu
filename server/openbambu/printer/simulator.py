@@ -9,8 +9,11 @@ from __future__ import annotations
 import asyncio
 import io
 import re
+import shutil
+import tempfile
 import time
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 from .base import BasePrinter
 
@@ -72,6 +75,47 @@ def _initial_report() -> dict:
     }
 
 
+class SimFiles:
+    """Tarjeta SD simulada sobre un directorio local."""
+
+    def __init__(self, root: Path):
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True)
+        (self.root / "timelapse").mkdir(exist_ok=True)
+
+    def _p(self, remote: str) -> Path:
+        p = (self.root / remote.lstrip("/")).resolve()
+        if self.root.resolve() not in (p, *p.parents):
+            raise PermissionError("Ruta inválida")
+        return p
+
+    async def alist(self, path: str = "/") -> list[dict]:
+        d = self._p(path)
+        items = []
+        for f in d.iterdir():
+            st = f.stat()
+            items.append({
+                "name": f.name,
+                "path": f"{path.rstrip('/')}/{f.name}",
+                "is_dir": f.is_dir(),
+                "size": 0 if f.is_dir() else st.st_size,
+                "modified": st.st_mtime,
+                "printable": f.is_file() and f.name.lower().endswith((".3mf", ".gcode")),
+            })
+        return sorted(items, key=lambda x: (not x["is_dir"], x["name"].lower()))
+
+    async def aupload(self, local: Path, remote: str, progress=None) -> None:
+        await asyncio.to_thread(shutil.copyfile, local, self._p(remote))
+        if progress:
+            progress(local.stat().st_size)
+
+    async def adownload(self, remote: str, local: Path) -> None:
+        await asyncio.to_thread(shutil.copyfile, self._p(remote), local)
+
+    async def adelete(self, remote: str) -> None:
+        self._p(remote).unlink()
+
+
 class SimulatedPrinter(BasePrinter):
     SPEED_FACTOR = {1: 0.5, 2: 1.0, 3: 1.5, 4: 2.0}
 
@@ -81,6 +125,13 @@ class SimulatedPrinter(BasePrinter):
         self._job_index = 0
         self._progress = 0.0
         self._idle_since = time.time() - 20
+        # Inicia trabajos de demo solo hasta que se use la cola / impresión real
+        self.auto_demo = True
+        self._files = SimFiles(Path(tempfile.gettempdir()) / f"openbambu-sim-{cfg.id}")
+
+    @property
+    def files(self) -> SimFiles:
+        return self._files
 
     @property
     def p(self) -> dict:
@@ -102,15 +153,16 @@ class SimulatedPrinter(BasePrinter):
         cur = min(tgt, cur + step) if tgt > cur else max(tgt, cur - step)
         self.p[cur_key] = round(cur, 1)
 
-    def _start_job(self) -> None:
-        name = DEMO_JOBS[self._job_index % len(DEMO_JOBS)]
-        self._job_index += 1
+    def _start_job(self, name: str | None = None, file: str | None = None) -> None:
+        if name is None:
+            name = DEMO_JOBS[self._job_index % len(DEMO_JOBS)]
+            self._job_index += 1
         self._progress = 0.0
         self.p.update(
             gcode_state="PREPARE",
             stg_cur=2,
             subtask_name=name,
-            gcode_file=f"/sdcard/{name}.gcode.3mf",
+            gcode_file=file or f"/sdcard/{name}.gcode.3mf",
             mc_percent=0,
             total_layer_num=120,
             layer_num=0,
@@ -129,7 +181,7 @@ class SimulatedPrinter(BasePrinter):
         state = p["gcode_state"]
 
         if state in ("IDLE", "FINISH", "FAILED"):
-            if time.time() - self._idle_since > 25:
+            if self.auto_demo and time.time() - self._idle_since > 25:
                 self._start_job()
             return
 
@@ -179,6 +231,11 @@ class SimulatedPrinter(BasePrinter):
         elif name == "stop" and p["gcode_state"] in ("RUNNING", "PAUSE", "PREPARE"):
             p["print_error"] = 50348044  # código real de "impresión cancelada"
             self._finish("FAILED")
+        elif name == "project_file" and p["gcode_state"] in ("IDLE", "FINISH", "FAILED"):
+            self.auto_demo = False
+            if not self._files._p(cmd["file"]).exists():
+                return {"result": "failed"}
+            self._start_job(cmd.get("subtask_name") or cmd["file"], f"/sdcard/{cmd['file']}")
         elif name == "print_speed":
             p["spd_lvl"] = int(cmd["param"])
             p["spd_mag"] = {1: 50, 2: 100, 3: 124, 4: 166}[p["spd_lvl"]]

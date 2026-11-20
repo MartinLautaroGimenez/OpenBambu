@@ -283,8 +283,14 @@ async def websocket(ws: WebSocket, token: str | None = None):
             queue.put_nowait({"type": "event", "data": ev.to_dict()})
         wake.set()
 
+    def on_queue(pid: str) -> None:
+        with contextlib.suppress(asyncio.QueueFull):
+            queue.put_nowait({"type": "queue", "printer_id": pid})
+        wake.set()
+
     removers = [p.add_listener(lambda s, pid=pid: on_status(pid, s)) for pid, p in mgr.printers.items()]
     mgr.bus.listeners.append(on_event)
+    mgr.queue.listeners.append(on_queue)
 
     async def sender():
         for pid, p in mgr.printers.items():
@@ -316,3 +322,5 @@ async def websocket(ws: WebSocket, token: str | None = None):
             r()
         if on_event in mgr.bus.listeners:
             mgr.bus.listeners.remove(on_event)
+        if on_queue in mgr.queue.listeners:
+            mgr.queue.listeners.remove(on_queue)

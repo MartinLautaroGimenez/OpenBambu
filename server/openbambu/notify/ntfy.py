@@ -29,6 +29,8 @@ TAGS = {
     "filament_runout": "warning",
     "hms": "rotating_light",
     "offline": "electric_plug",
+    "queue_bed_clear": "broom",
+    "queue_error": "warning",
 }
 
 SnapshotFn = Callable[[str], Awaitable[bytes | None]]

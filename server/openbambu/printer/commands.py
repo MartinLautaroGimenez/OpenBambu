@@ -181,3 +181,42 @@ def ams_filament_setting(
             "setting_id": "",
         }
     }
+
+
+def project_file(
+    filename: str,
+    plate: int,
+    name: str,
+    ams_mapping: list[int],
+    ams_mapping2: list[dict],
+    use_ams: bool,
+    bed_leveling: bool = True,
+    flow_cali: bool = False,
+    timelapse: bool = False,
+    vibration_cali: bool = False,
+) -> dict:
+    """Inicia la impresión de una placa de un .gcode.3mf que ya está en la SD."""
+    return {
+        "print": {
+            "command": "project_file",
+            "param": f"Metadata/plate_{plate}.gcode",
+            "url": f"file:///sdcard/{filename}",
+            "file": filename,
+            "md5": "",
+            "project_id": "0",
+            "profile_id": "0",
+            "task_id": "0",
+            "subtask_id": "0",
+            "subtask_name": name,
+            "bed_type": "auto",
+            "bed_leveling": bed_leveling,
+            "bed_levelling": bed_leveling,
+            "flow_cali": flow_cali,
+            "vibration_cali": vibration_cali,
+            "layer_inspect": False,
+            "timelapse": timelapse,
+            "use_ams": use_ams,
+            "ams_mapping": ams_mapping,
+            "ams_mapping2": ams_mapping2,
+        }
+    }

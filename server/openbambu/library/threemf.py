@@ -1,0 +1,101 @@
+"""Lectura de archivos .gcode.3mf generados por Bambu Studio / OrcaSlicer.
+
+Un .gcode.3mf laminado contiene, por cada placa N:
+  * ``Metadata/plate_N.gcode``      el G-code
+  * ``Metadata/plate_N.png``        la miniatura
+  * ``Metadata/slice_info.config``  tiempo, peso y filamentos usados
+"""
+
+from __future__ import annotations
+
+import re
+import xml.etree.ElementTree as ET
+import zipfile
+from pathlib import Path
+
+
+class InvalidFile(ValueError):
+    pass
+
+
+def _meta(el: ET.Element) -> dict[str, str]:
+    return {m.get("key", ""): m.get("value", "") for m in el.findall("metadata")}
+
+
+def _float(v: str | None) -> float | None:
+    try:
+        return float(v) if v not in (None, "") else None
+    except ValueError:
+        return None
+
+
+def read_3mf(path: Path) -> dict:
+    """Devuelve ``{"sliced": bool, "plates": [...]}``.
+
+    Cada placa: ``index, gcode, thumbnail, prediction_s, weight_g, filaments``
+    y cada filamento: ``id`` (1-based, posición en el proyecto), ``type``,
+    ``color`` (#RRGGBB), ``used_g``.
+    """
+    try:
+        zf = zipfile.ZipFile(path)
+    except zipfile.BadZipFile as e:
+        raise InvalidFile("No es un archivo 3MF válido") from e
+
+    with zf:
+        names = set(zf.namelist())
+        gcodes = sorted(
+            (int(m[1]) for n in names if (m := re.fullmatch(r"Metadata/plate_(\d+)\.gcode", n))),
+        )
+        info: dict[int, dict] = {}
+        if "Metadata/slice_info.config" in names:
+            try:
+                root = ET.fromstring(zf.read("Metadata/slice_info.config"))
+            except ET.ParseError:
+                root = None
+            for plate in root.findall("plate") if root is not None else []:
+                meta = _meta(plate)
+                idx = int(meta.get("index", "0") or 0)
+                filaments = []
+                for f in plate.findall("filament"):
+                    color = (f.get("color") or "").upper()
+                    filaments.append(
+                        {
+                            "id": int(f.get("id", "0") or 0),
+                            "type": f.get("type") or "PLA",
+                            "color": color[:7] if color.startswith("#") else None,
+                            "used_g": _float(f.get("used_g")),
+                        }
+                    )
+                info[idx] = {
+                    "prediction_s": int(_float(meta.get("prediction")) or 0) or None,
+                    "weight_g": _float(meta.get("weight")),
+                    "filaments": sorted(filaments, key=lambda x: x["id"]),
+                }
+
+        plates = []
+        for idx in gcodes:
+            extra = info.get(idx, {})
+            plates.append(
+                {
+                    "index": idx,
+                    "gcode": f"Metadata/plate_{idx}.gcode",
+                    "thumbnail": f"Metadata/plate_{idx}.png" in names,
+                    "prediction_s": extra.get("prediction_s"),
+                    "weight_g": extra.get("weight_g"),
+                    "filaments": extra.get("filaments", []),
+                }
+            )
+        return {"sliced": bool(plates), "plates": plates}
+
+
+def read_thumbnail(path: Path, plate: int) -> bytes | None:
+    try:
+        with zipfile.ZipFile(path) as zf:
+            for name in (f"Metadata/plate_{plate}.png", f"Metadata/plate_{plate}_small.png"):
+                try:
+                    return zf.read(name)
+                except KeyError:
+                    continue
+    except zipfile.BadZipFile:
+        return None
+    return None

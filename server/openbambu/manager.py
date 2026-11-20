@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from pathlib import Path
 
 from .config import PrinterConfig, Settings
+from .library.queue import QueueManager
+from .library.store import Store
 from .notify.events import Event, EventBus, EventDetector
 from .notify.ntfy import NtfyNotifier
 from .printer.base import BasePrinter
@@ -32,6 +35,8 @@ class PrinterManager:
         self._tasks: set[asyncio.Task] = set()
         self.ntfy = NtfyNotifier(settings.notifications.ntfy, snapshot=self.snapshot)
         self.bus.notifiers.append(self.ntfy)
+        self.store = Store(Path(settings.data_dir))
+        self.queue = QueueManager(self.store, self.printers, self.emit)
 
     async def start(self) -> None:
         for cfg in self.settings.printers:
@@ -43,13 +48,16 @@ class PrinterManager:
             det = EventDetector(cfg.id, cfg.name, self.settings.notifications.progress_step)
             self._detectors[cfg.id] = det
             printer.add_listener(lambda snap, d=det: self._on_status(d, snap))
+            printer.add_listener(lambda snap, pid=cfg.id: self.queue.on_status(pid, snap))
             self.printers[cfg.id] = printer
             await printer.start()
             log.info("Impresora %s (%s, %s) iniciada", cfg.id, cfg.model, cfg.mode)
+        self.queue.start()
         if not self.printers:
             log.warning("No hay impresoras configuradas. Ver docs/CONFIGURAR_A1.md")
 
     async def stop(self) -> None:
+        await self.queue.stop()
         for p in self.printers.values():
             await p.stop()
 

@@ -74,6 +74,12 @@ class BasePrinter(ABC):
     async def send(self, payload: dict, wait: bool = True) -> dict:
         """Envía un comando. Devuelve {"result": "success"|"failed"|"sent"}."""
 
+    # ---- archivos de la SD ---------------------------------------------
+    @property
+    @abstractmethod
+    def files(self):
+        """Objeto con alist/aupload/adownload/adelete sobre la tarjeta SD."""
+
     # ---- cámara --------------------------------------------------------
     @abstractmethod
     def camera_frames(self) -> AsyncIterator[bytes]:

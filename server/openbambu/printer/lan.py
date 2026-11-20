@@ -21,6 +21,7 @@ import aiomqtt
 
 from .base import BasePrinter
 from .commands import pushall
+from .ftps import PrinterFiles
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,11 @@ class LanPrinter(BasePrinter):
         super().__init__(cfg)
         self._client: aiomqtt.Client | None = None
         self._pending: dict[str, asyncio.Future] = {}
+        self._files = PrinterFiles(cfg.host, cfg.access_code)
+
+    @property
+    def files(self) -> PrinterFiles:
+        return self._files
 
     @property
     def report_topic(self) -> str:
