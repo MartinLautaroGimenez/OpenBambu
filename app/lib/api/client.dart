@@ -188,6 +188,40 @@ class ApiClient {
 
   Future<LibraryItem> libraryItem(String id) async => LibraryItem.fromJson(await _req('GET', '/library/$id'));
 
+  // ---- catálogo -------------------------------------------------------
+  Future<List<CatalogSource>> catalogSources() async => [
+    for (final x in (await _req('GET', '/catalog/sources')) as List) CatalogSource.fromJson(x),
+  ];
+
+  Future<List<CatalogItem>> catalogBrowse({String query = '', String? source, int page = 0}) async {
+    final d = await _req('GET', '/catalog', query: {'q': query, 'page': '$page', 'limit': '24', 'source': ?source});
+    return [for (final x in (d['items'] as List)) CatalogItem.fromJson(x)];
+  }
+
+  /// Imagen del catálogo achicada por el servidor (ahorra datos y evita CORS en web).
+  String catalogImage(String url, {int width = 480}) =>
+      uri('/catalog/image', {'url': url, 'w': '$width', 'token': token}).toString();
+
+  /// Inicia sesión en MakerWorld. Devuelve true si falta el código del email.
+  Future<bool> makerWorldLogin({String email = '', String password = '', String code = '', String token = ''}) async {
+    final r = await _req(
+      'POST',
+      '/catalog/makerworld/login',
+      body: {'email': email, 'password': password, 'code': code, 'token': token},
+    );
+    return r['needs_code'] == true;
+  }
+
+  Future<void> makerWorldLogout() => _req('DELETE', '/catalog/makerworld/login');
+
+  Future<CatalogDetail> catalogDetail(String source, String id) async =>
+      CatalogDetail.fromJson(await _req('GET', '/catalog/$source/$id'));
+
+  Future<List<LibraryItem>> catalogDownload(String source, String id, List<String> fileIds) async => [
+    for (final x in (await _req('POST', '/catalog/$source/$id/download', body: {'file_ids': fileIds})) as List)
+      LibraryItem.fromJson(x),
+  ];
+
   // ---- tarjeta SD -----------------------------------------------------
   Future<List<SdFile>> sdFiles(String printerId, String path) async => [
     for (final x in (await _req('GET', '/printers/$printerId/files', query: {'path': path})) as List)

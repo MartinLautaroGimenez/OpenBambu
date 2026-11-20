@@ -356,6 +356,12 @@ class _LibraryCard extends StatelessWidget {
                       fit: BoxFit.contain,
                       errorBuilder: (_, _, _) => const Icon(Icons.view_in_ar_rounded),
                     )
+                  : item.catalogImage != null && api != null
+                  ? Image.network(
+                      api.catalogImage(item.catalogImage!, width: 200),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const Icon(Icons.view_in_ar_rounded),
+                    )
                   : const Icon(Icons.view_in_ar_rounded, size: 34),
             ),
             const SizedBox(width: 14),

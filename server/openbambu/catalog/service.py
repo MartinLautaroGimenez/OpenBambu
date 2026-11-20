@@ -35,6 +35,10 @@ class CatalogService:
         }
         self._cache: dict[tuple, tuple[float, object]] = {}
 
+    def set_makerworld_token(self, token: str) -> None:
+        self.providers["makerworld"].token = token.strip()  # type: ignore[attr-defined]
+        self._cache = {k: v for k, v in self._cache.items() if k[0] != "makerworld"}
+
     def sources(self) -> list[dict]:
         return [
             {"id": p.name, "label": p.label, "enabled": p.enabled,
@@ -116,3 +120,51 @@ class CatalogService:
                 shutil.rmtree(folder, ignore_errors=True)
                 raise
         return items
+
+
+# ---- proxy de imágenes -------------------------------------------------------
+IMAGE_HOSTS = (
+    "makerworld.bblmw.com", "public-cdn.bblmw.com", "media.printables.com", "files.printables.com",
+    "cdn.thingiverse.com", "thingiverse-production-new.s3.amazonaws.com",
+)
+
+
+def image_allowed(url: str) -> bool:
+    from urllib.parse import urlparse
+
+    u = urlparse(url)
+    return u.scheme == "https" and any(u.hostname == h or (u.hostname or "").endswith("." + h) for h in IMAGE_HOSTS)
+
+
+async def fetch_thumbnail(service: CatalogService, url: str, width: int, cache_dir) -> bytes:
+    """Descarga una imagen del catálogo, la achica a ``width`` px (JPEG) y la cachea en disco."""
+    import hashlib
+    import io
+
+    from PIL import Image
+
+    if not image_allowed(url):
+        raise CatalogError("Dominio de imagen no permitido")
+    width = max(64, min(width, 1600))
+    key = hashlib.sha1(f"{url}|{width}".encode()).hexdigest()
+    path = cache_dir / key[:2] / f"{key}.jpg"
+    if path.exists():
+        return path.read_bytes()
+    r = await service.client.get(url, timeout=20)
+    r.raise_for_status()
+    if len(r.content) > 20 * 1024 * 1024:
+        raise CatalogError("Imagen demasiado grande")
+
+    def resize() -> bytes:
+        img = Image.open(io.BytesIO(r.content))
+        img = img.convert("RGB")
+        if img.width > width:
+            img = img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=82, optimize=True)
+        return buf.getvalue()
+
+    data = await asyncio.to_thread(resize)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+    return data

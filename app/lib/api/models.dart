@@ -230,6 +230,7 @@ class LibraryItem {
   final String source;
   final bool sliced;
   final String? format;
+  final String? catalogImage;
   final List<Plate> plates;
 
   LibraryItem.fromJson(Map<String, dynamic> j)
@@ -241,6 +242,7 @@ class LibraryItem {
       source = j['source'] ?? 'upload',
       sliced = (j['meta'] ?? const {})['sliced'] == true,
       format = (j['meta'] ?? const {})['format'],
+      catalogImage = ((j['meta'] ?? const {})['catalog'] ?? const {})['image'],
       plates = [for (final p in ((j['meta'] ?? const {})['plates'] as List? ?? [])) Plate.fromJson(p)];
 }
 
@@ -407,4 +409,85 @@ class SliceJob {
       logTail = [for (final l in (j['log_tail'] as List? ?? [])) '$l'];
 
   bool get finished => status == 'done' || status == 'failed';
+}
+
+// ---- Catálogo --------------------------------------------------------------
+
+class CatalogSource {
+  final String id;
+  final String label;
+  final bool enabled;
+  final bool canDownload;
+
+  CatalogSource.fromJson(Map<String, dynamic> j)
+    : id = j['id'],
+      label = j['label'] ?? j['id'],
+      enabled = j['enabled'] == true,
+      canDownload = j['can_download'] == true;
+}
+
+class CatalogItem {
+  final String source;
+  final String id;
+  final String title;
+  final String? image;
+  final String? author;
+  final int likes;
+  final int downloads;
+  final String? url;
+
+  CatalogItem.fromJson(Map<String, dynamic> j)
+    : source = j['source'],
+      id = '${j['id']}',
+      title = j['title'] ?? '',
+      image = j['image'],
+      author = j['author'],
+      likes = _i(j['likes']),
+      downloads = _i(j['downloads']),
+      url = j['url'];
+}
+
+class CatalogFile {
+  final String id;
+  final String name;
+  final String kind;
+  final int? size;
+  final String? printer;
+  final int? predictionS;
+  final double? weightG;
+  final List<FileFilament> filaments;
+  final String? image;
+
+  CatalogFile.fromJson(Map<String, dynamic> j)
+    : id = '${j['id']}',
+      name = j['name'] ?? '',
+      kind = j['kind'] ?? 'stl',
+      size = j['size'] == null ? null : _i(j['size']),
+      printer = j['printer'],
+      predictionS = j['prediction_s'] == null ? null : _i(j['prediction_s']),
+      weightG = j['weight_g'] == null ? null : _d(j['weight_g']),
+      filaments = [
+        for (final (i, f) in ((j['filaments'] as List? ?? []).indexed))
+          FileFilament.fromJson({'id': i + 1, ...(f as Map<String, dynamic>)}),
+      ],
+      image = j['image'];
+}
+
+class CatalogDetail {
+  final CatalogItem item;
+  final String description;
+  final List<String> images;
+  final List<CatalogFile> files;
+  final String? license;
+  final bool downloadable;
+  final String? note;
+
+  CatalogDetail.fromJson(Map<String, dynamic> j)
+    : item = CatalogItem.fromJson(j),
+      description = j['description'] ?? '',
+      images = [for (final i in (j['images'] as List? ?? [])) '$i'],
+      files = [for (final f in (j['files'] as List? ?? [])) CatalogFile.fromJson(f)],
+      license = j['license'],
+      downloadable = j['downloadable'] != false,
+      note = j['note'];
 }

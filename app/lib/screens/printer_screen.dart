@@ -7,6 +7,7 @@ import '../api/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'catalog/catalog_screen.dart';
 import 'settings_screen.dart';
 import 'tabs/ams_tab.dart';
 import 'tabs/control_tab.dart';
@@ -55,78 +56,104 @@ class _PrinterScreenState extends State<PrinterScreen> {
     super.dispose();
   }
 
+  void _go(int tab) => setState(() => _tab = tab);
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     final p = s.selected;
-    final unread = s.events.where((e) => e.severity == 'error').length;
+    final alerts = p?.status.hms.isNotEmpty ?? false;
+    final settings = IconButton(
+      tooltip: 'Ajustes',
+      icon: const Icon(Icons.settings_rounded),
+      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+    );
+
+    Widget section(int tab) {
+      if (tab == 0) return CatalogScreen(onOpenPrinter: () => _go(2));
+      if (p == null) {
+        return Scaffold(
+          appBar: AppBar(actions: [settings]),
+          body: _Empty(state: s),
+        );
+      }
+      return switch (tab) {
+        1 => Scaffold(
+          appBar: AppBar(titleSpacing: 20, title: const Text('Biblioteca'), actions: [settings]),
+          body: PrintTab(printer: p),
+        ),
+        2 => DefaultTabController(
+          length: 3,
+          child: Scaffold(
+            appBar: AppBar(
+              titleSpacing: 20,
+              title: _PrinterTitle(printer: p, multiple: s.printers.length > 1),
+              actions: [settings, const SizedBox(width: 4)],
+              bottom: const TabBar(
+                tabs: [
+                  Tab(text: 'Estado'),
+                  Tab(text: 'Control'),
+                  Tab(text: 'AMS'),
+                ],
+              ),
+            ),
+            body: Builder(
+              builder: (ctx) => TabBarView(
+                children: [
+                  StatusTab(printer: p, onOpenControl: () => DefaultTabController.of(ctx).animateTo(1)),
+                  ControlTab(printer: p),
+                  AmsTab(printer: p),
+                ],
+              ),
+            ),
+          ),
+        ),
+        _ => Scaffold(
+          appBar: AppBar(titleSpacing: 20, title: const Text('Actividad'), actions: [settings]),
+          body: EventsTab(printer: p),
+        ),
+      };
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 20,
-        title: p == null ? const Text('OpenBambu') : _PrinterTitle(printer: p, multiple: s.printers.length > 1),
-        actions: [
-          IconButton(
-            tooltip: 'Ajustes',
-            icon: const Icon(Icons.settings_rounded),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
       body: Column(
         children: [
-          const ConnectionBanner(),
+          SafeArea(bottom: false, top: _tab == 0, child: const ConnectionBanner()),
           Expanded(
-            child: p == null
-                ? _Empty(state: s)
-                : IndexedStack(
-                    index: _tab,
-                    children: [
-                      StatusTab(printer: p, onOpenControl: () => setState(() => _tab = 1)),
-                      ControlTab(printer: p),
-                      PrintTab(printer: p),
-                      AmsTab(printer: p),
-                      EventsTab(printer: p),
-                    ],
-                  ),
+            child: IndexedStack(index: _tab, children: [for (var i = 0; i < 4; i++) section(i)]),
           ),
         ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        onDestinationSelected: _go,
         destinations: [
           const NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard_rounded),
-            label: 'Estado',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.tune_outlined),
-            selectedIcon: Icon(Icons.tune_rounded),
-            label: 'Control',
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore_rounded),
+            label: 'Explorar',
           ),
           NavigationDestination(
             icon: Badge(
               isLabelVisible: p != null && s.queueOf(p.id).waitingBedClear,
-              child: const Icon(Icons.print_outlined),
+              child: const Icon(Icons.folder_outlined),
             ),
-            selectedIcon: const Icon(Icons.print_rounded),
-            label: 'Imprimir',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.palette_outlined),
-            selectedIcon: Icon(Icons.palette_rounded),
-            label: 'AMS',
+            selectedIcon: const Icon(Icons.folder_rounded),
+            label: 'Biblioteca',
           ),
           NavigationDestination(
             icon: Badge(
-              isLabelVisible: unread > 0 && (p?.status.hms.isNotEmpty ?? false),
-              child: const Icon(Icons.notifications_outlined),
+              isLabelVisible: p != null && p.status.isActive,
+              backgroundColor: AppColors.accent,
+              child: const Icon(Icons.print_outlined),
             ),
-            selectedIcon: const Icon(Icons.notifications_rounded),
-            label: 'Eventos',
+            selectedIcon: const Icon(Icons.print_rounded),
+            label: 'Impresora',
+          ),
+          NavigationDestination(
+            icon: Badge(isLabelVisible: alerts, child: const Icon(Icons.timeline_outlined)),
+            selectedIcon: const Icon(Icons.timeline_rounded),
+            label: 'Actividad',
           ),
         ],
       ),

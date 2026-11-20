@@ -41,6 +41,10 @@ class PrinterManager:
         self.queue = QueueManager(self.store, self.printers, self.emit)
         self.slicer = SliceManager(self.store, self.printers)
         self.catalog = CatalogService(settings.catalog, self.store)
+        # Token de MakerWorld guardado desde la app (tiene prioridad sobre config.yaml)
+        from .catalog.bambu_auth import load_secrets
+        if tok := load_secrets(settings.data_dir).get("makerworld_token"):
+            self.catalog.set_makerworld_token(tok)
 
     async def start(self) -> None:
         for cfg in self.settings.printers:

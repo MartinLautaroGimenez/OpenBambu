@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import httpx
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from ..catalog.base import AuthRequired, CatalogError
+from ..catalog.service import fetch_thumbnail
 from ..library.threemf import InvalidFile
 from ..manager import PrinterManager
 from .routes import auth, manager
@@ -38,6 +42,55 @@ async def browse(q: str = "", source: str | None = None, page: int = Query(0, ge
         return await mgr.catalog.browse(q, source, page, limit)
     except CatalogError as e:
         raise _err(e) from e
+
+
+class MakerWorldLoginIn(BaseModel):
+    email: str = ""
+    password: str = ""
+    code: str = ""
+    token: str = ""  # alternativa: pegar el token a mano
+
+
+@router.post("/makerworld/login")
+async def makerworld_login(body: MakerWorldLoginIn, mgr: PrinterManager = Depends(manager)):
+    from ..catalog.bambu_auth import LoginNeedsCode, login, save_secret
+
+    token = body.token.strip()
+    if not token:
+        if not body.email:
+            raise HTTPException(422, "Ingresá tu email o un token")
+        try:
+            token = await login(mgr.catalog.client, body.email, body.password, body.code)
+        except LoginNeedsCode as e:
+            return {"ok": False, "needs_code": True, "message": str(e)}
+        except CatalogError as e:
+            raise HTTPException(422, str(e)) from e
+        except httpx.HTTPError as e:
+            raise HTTPException(502, "No se pudo contactar a Bambu Lab") from e
+    save_secret(mgr.settings.data_dir, "makerworld_token", token)
+    mgr.catalog.set_makerworld_token(token)
+    return {"ok": True}
+
+
+@router.delete("/makerworld/login")
+async def makerworld_logout(mgr: PrinterManager = Depends(manager)):
+    from ..catalog.bambu_auth import save_secret
+
+    save_secret(mgr.settings.data_dir, "makerworld_token", None)
+    mgr.catalog.set_makerworld_token("")
+    return {"ok": True}
+
+
+@router.get("/image")
+async def image(url: str, w: int = 480, mgr: PrinterManager = Depends(manager)):
+    """Miniatura de una imagen del catálogo (achicada y cacheada en el servidor)."""
+    try:
+        data = await fetch_thumbnail(mgr.catalog, url, w, Path(mgr.settings.data_dir) / "cache" / "images")
+    except CatalogError as e:
+        raise HTTPException(422, str(e)) from e
+    except (httpx.HTTPError, OSError) as e:
+        raise HTTPException(502, "No se pudo obtener la imagen") from e
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=604800"})
 
 
 @router.get("/{source}/{item_id}")

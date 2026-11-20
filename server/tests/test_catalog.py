@@ -100,3 +100,63 @@ def test_makerworld_profiles_and_auth(service):
     with pytest.raises(Exception):
         run(s2.download("makerworld", "77", ["500"]))
     assert s2.store.list_files() == []
+
+
+def test_image_proxy_allowlist_and_resize(service, tmp_path):
+    import io
+
+    from PIL import Image
+
+    from openbambu.catalog.service import fetch_thumbnail, image_allowed
+
+    assert image_allowed("https://media.printables.com/media/a.jpg")
+    assert image_allowed("https://makerworld.bblmw.com/x.png")
+    assert not image_allowed("http://media.printables.com/a.jpg")  # solo https
+    assert not image_allowed("https://169.254.169.254/latest/meta-data")
+    assert not image_allowed("https://evilmedia.printables.com.attacker.net/a.jpg")
+
+    buf = io.BytesIO()
+    Image.new("RGB", (2000, 1000), (200, 10, 10)).save(buf, "PNG")
+    png = buf.getvalue()
+
+    def img_handler(request):
+        return httpx.Response(200, content=png)
+
+    s = CatalogService(CatalogConfig(), Store(tmp_path), httpx.AsyncClient(transport=httpx.MockTransport(img_handler)))
+    data = run(fetch_thumbnail(s, "https://media.printables.com/big.png", 400, tmp_path / "cache"))
+    assert Image.open(io.BytesIO(data)).size == (400, 200)
+    assert len(list((tmp_path / "cache").rglob("*.jpg"))) == 1
+
+
+def test_makerworld_login_flow(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from openbambu.config import PrinterConfig, Settings
+    from openbambu.main import create_app
+
+    calls = []
+
+    def bambu(request):
+        body = json.loads(request.content)
+        calls.append((request.url.path, body))
+        if request.url.path.endswith("/user/login"):
+            if body.get("code") == "123456":
+                return httpx.Response(200, json={"accessToken": "tok-nuevo"})
+            return httpx.Response(200, json={"accessToken": "", "loginType": "verifyCode"})
+        return httpx.Response(200, json={})
+
+    settings = Settings(api_token="t", data_dir=str(tmp_path),
+                        printers=[PrinterConfig(id="sim", model="A1", mode="simulator")])
+    with TestClient(create_app(settings)) as c:
+        mgr = c.app.state.manager
+        mgr.catalog.client = httpx.AsyncClient(transport=httpx.MockTransport(bambu))
+        H = {"Authorization": "Bearer t"}
+        r = c.post("/api/catalog/makerworld/login", json={"email": "a@b.c", "password": "x"}, headers=H).json()
+        assert r["needs_code"] and calls[-1][0].endswith("/sendemail/code")
+        r = c.post("/api/catalog/makerworld/login", json={"email": "a@b.c", "code": "123456"}, headers=H).json()
+        assert r == {"ok": True}
+        assert mgr.catalog.providers["makerworld"].token == "tok-nuevo"
+        assert next(s for s in c.get("/api/catalog/sources", headers=H).json() if s["id"] == "makerworld")["can_download"]
+        assert "tok-nuevo" not in c.get("/api/catalog/sources", headers=H).text  # el token no se expone
+        c.delete("/api/catalog/makerworld/login", headers=H)
+        assert mgr.catalog.providers["makerworld"].token == ""

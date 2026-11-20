@@ -5,6 +5,7 @@ import '../services/background.dart';
 import '../services/notifications.dart';
 import '../state/app_state.dart';
 import '../widgets/common.dart';
+import '../widgets/makerworld_login.dart';
 import 'setup_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -36,6 +37,29 @@ class SettingsScreen extends StatelessWidget {
                   }),
                   trailing: const Icon(Icons.chevron_right_rounded),
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SetupScreen())),
+                ),
+              ],
+            ),
+          ),
+          const SectionTitle('Catálogo'),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.public_rounded),
+                  title: const Text('Cuenta de MakerWorld'),
+                  subtitle: const Text('Necesaria para descargar perfiles de MakerWorld'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () async {
+                    if (await showMakerWorldLogin(context) && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('MakerWorld vinculado')));
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.link_off_rounded),
+                  title: const Text('Desvincular MakerWorld'),
+                  onTap: () => s.api?.makerWorldLogout(),
                 ),
               ],
             ),
