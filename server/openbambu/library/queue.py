@@ -39,6 +39,8 @@ class QueueManager:
         self._prev_state: dict[str, str] = {}
         self._asked_bed: dict[str, int] = {}
         self._tasks: list[asyncio.Task] = []
+        self.power = None  # PowerManager (opcional)
+        self._powering: set[str] = set()
 
     # ---- ciclo de vida -------------------------------------------------
     def start(self) -> None:
@@ -122,6 +124,15 @@ class QueueManager:
             return
 
         st = self.store.queue_state(pid)
+        if not s["connected"] and not st["paused"] and st["bed_clear"] and self.power \
+                and self.power.entity(pid) and pid not in self._powering and self.store.next_queued(pid):
+            # Impresora apagada con un trabajo listo: prenderla con el enchufe
+            self._powering.add(pid)
+            try:
+                await self.power.ensure_on(pid)
+            finally:
+                self._powering.discard(pid)
+            return
         if st["paused"] or not s["connected"] or s["state"] not in READY:
             return
         job = self.store.next_queued(pid)

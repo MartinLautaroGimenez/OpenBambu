@@ -31,6 +31,8 @@ TAGS = {
     "offline": "electric_plug",
     "queue_bed_clear": "broom",
     "queue_error": "warning",
+    "power_on": "electric_plug",
+    "power_off": "zzz",
 }
 
 SnapshotFn = Callable[[str], Awaitable[bytes | None]]

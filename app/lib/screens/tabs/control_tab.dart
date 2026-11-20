@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../api/models.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/power_card.dart';
 
 class ControlTab extends StatelessWidget {
   final Printer printer;
@@ -16,6 +17,8 @@ class ControlTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
+        const SectionTitle('Energía'),
+        PowerCard(printer: printer),
         const SectionTitle('Temperaturas'),
         _TempControl(
           label: 'Boquilla',

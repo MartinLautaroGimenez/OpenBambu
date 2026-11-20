@@ -248,6 +248,22 @@ class ApiClient {
 
   Future<void> deleteSpool(int id) => _req('DELETE', '/spools/$id');
 
+  // ---- energía (Home Assistant) --------------------------------------
+  Future<Map<String, dynamic>> powerConfig() async => (await _req('GET', '/power/config')) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> savePowerConfig(Map<String, dynamic> data) async =>
+      (await _req('PUT', '/power/config', body: data)) as Map<String, dynamic>;
+
+  Future<List<Map<String, dynamic>>> powerEntities() async => [
+    for (final x in (await _req('GET', '/power/entities')) as List) x as Map<String, dynamic>,
+  ];
+
+  Future<Map<String, dynamic>> powerStatus(String printerId) async =>
+      (await _req('GET', '/printers/$printerId/power')) as Map<String, dynamic>;
+
+  Future<Map<String, dynamic>> setPower(String printerId, bool on, {bool force = false}) async =>
+      (await _req('POST', '/printers/$printerId/power', body: {'on': on, 'force': force})) as Map<String, dynamic>;
+
   // ---- tarjeta SD -----------------------------------------------------
   Future<List<SdFile>> sdFiles(String printerId, String path) async => [
     for (final x in (await _req('GET', '/printers/$printerId/files', query: {'path': path})) as List)
