@@ -10,6 +10,7 @@ import struct
 import sys
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 from ..library.threemf import read_3mf
@@ -43,8 +44,11 @@ async def main(model: str = "A1") -> int:
             print("   ", len(entries), "entradas:", [e.name for e in entries[:40]])
             for e in entries:
                 if e.name.upper().startswith("BBL"):
-                    sub = sorted(e.iterdir()) if e.is_dir() else []
-                    print("   ", e.name, "->", [x.name for x in sub[:20]])
+                    if e.is_dir():
+                        print("   ", e.name, "->", [x.name for x in sorted(e.iterdir())[:20]])
+                    elif zipfile.is_zipfile(e):
+                        with zipfile.ZipFile(e) as z:
+                            print("   ", e.name, "(zip) ->", z.namelist()[:15])
         return 1
     machine = MACHINE_FOR_MODEL[model]
     procs = lib.processes(machine)

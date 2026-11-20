@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import zipfile
 from functools import lru_cache
 from pathlib import Path
 
@@ -32,18 +33,33 @@ class ProfileError(ValueError):
     pass
 
 
+def _is_profile_source(p: Path) -> bool:
+    if p.is_dir():
+        return (p / "machine").is_dir()
+    if p.is_file() and zipfile.is_zipfile(p):
+        with zipfile.ZipFile(p) as z:
+            return any("machine/" in n for n in z.namelist())
+    return False
+
+
 def profiles_dir() -> Path | None:
-    candidates = [os.getenv("OB_ORCA_PROFILES", "")] + DEFAULT_PROFILE_DIRS
-    for c in candidates:
-        if c and (Path(c) / "machine").is_dir():
-            return Path(c)
+    """Carpeta de perfiles BBL, o el paquete ``BBL.opc`` (zip) de OrcaSlicer 2.5+."""
+    env = os.getenv("OB_ORCA_PROFILES", "")
+    if env:
+        return Path(env) if _is_profile_source(Path(env)) else None
+    for c in DEFAULT_PROFILE_DIRS:
+        for cand in (Path(c), Path(c + ".opc")):
+            if _is_profile_source(cand):
+                return cand
     # La ubicación dentro del AppImage cambia entre versiones: buscarla
     orca = Path("/opt/orca")
-    if orca.is_dir() and not os.getenv("OB_ORCA_PROFILES"):
-        for pattern in ("*/profiles/BBL", "*/*/profiles/BBL", "*/*/*/profiles/BBL", "*/*/*/*/profiles/BBL"):
-            for found in sorted(orca.glob(pattern)):
-                if (found / "machine").is_dir():
-                    return found
+    if orca.is_dir():
+        for depth in range(1, 5):
+            base = "/".join(["*"] * depth)
+            for name in ("BBL.opc", "BBL"):
+                for found in sorted(orca.glob(f"{base}/profiles/{name}")):
+                    if _is_profile_source(found):
+                        return found
     return None
 
 
@@ -55,15 +71,35 @@ class ProfileLibrary:
         self.by_name: dict[str, tuple[str, Path]] = {}
         self._raw: dict[str, dict] = {}
         self._resolved: dict[str, dict] = {}
-        for kind in ("machine", "process", "filament"):
-            for f in (root / kind).rglob("*.json"):
-                try:
-                    data = json.loads(f.read_text(encoding="utf-8"))
-                except (OSError, ValueError):
+        for kind, path, text in self._iter_files(root):
+            try:
+                data = json.loads(text)
+            except ValueError:
+                continue
+            if isinstance(data, dict) and data.get("name"):
+                self.by_name[data["name"]] = (kind, path)
+                self._raw[data["name"]] = data
+
+    @staticmethod
+    def _iter_files(root: Path):
+        """Recorre los JSON de machine/process/filament en una carpeta o un .opc (zip)."""
+        kinds = ("machine", "process", "filament")
+        if root.is_dir():
+            for kind in kinds:
+                for f in (root / kind).rglob("*.json"):
+                    try:
+                        yield kind, f, f.read_text(encoding="utf-8")
+                    except OSError:
+                        continue
+            return
+        with zipfile.ZipFile(root) as z:
+            for n in z.namelist():
+                if not n.endswith(".json"):
                     continue
-                if isinstance(data, dict) and data.get("name"):
-                    self.by_name[data["name"]] = (kind, f)
-                    self._raw[data["name"]] = data
+                parts = n.split("/")
+                kind = next((k for k in kinds if k in parts[:-1]), None)
+                if kind:
+                    yield kind, Path(n), z.read(n).decode("utf-8", "replace")
 
     def raw(self, name: str) -> dict:
         if name not in self._raw:

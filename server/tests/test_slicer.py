@@ -59,6 +59,23 @@ def test_profiles_listing_and_resolution(profile_dir):
     assert lib.default_filament(MACHINE, "ABS") is None
 
 
+def test_profiles_from_opc_zip(profile_dir, tmp_path, monkeypatch):
+    """OrcaSlicer 2.5 empaqueta los perfiles en BBL.opc (zip)."""
+    import zipfile
+
+    opc = tmp_path / "profiles" / "BBL.opc"
+    opc.parent.mkdir()
+    with zipfile.ZipFile(opc, "w") as z:
+        for f in profile_dir.rglob("*.json"):
+            z.write(f, "BBL/" + f.relative_to(profile_dir).as_posix())
+    monkeypatch.setenv("OB_ORCA_PROFILES", str(opc))
+    P.get_library.cache_clear()
+    lib = P.get_library()
+    assert lib is not None and lib.root == opc
+    assert [p["label"] for p in lib.processes(MACHINE)][0] == "0.12mm Fine"
+    assert lib.resolve(MACHINE)["nozzle_diameter"] == ["0.4"]
+
+
 def test_overrides():
     p = P.apply_overrides({"layer_height": "0.2"}, {"layer_height": 0.16, "infill": 30, "walls": 4,
                                                     "supports": "tree", "brim": False, "infill_pattern": "gyroid"})
