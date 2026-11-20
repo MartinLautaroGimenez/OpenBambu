@@ -122,10 +122,12 @@ def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
                     open_poly = [round(x * 10), round(y * 10)]
                     open_key = key
                     paths.setdefault(key, []).append(open_poly)
+                frame = feature not in ("ot", "pt")  # purga y torre no definen el encuadre
                 for px, py in pts:
                     open_poly += [round(px * 10), round(py * 10)]
-                    min_x, max_x = min(min_x, px), max(max_x, px)
-                    min_y, max_y = min(min_y, py), max(max_y, py)
+                    if frame:
+                        min_x, max_x = min(min_x, px), max(max_x, px)
+                        min_y, max_y = min(min_y, py), max(max_y, py)
                 total += len(pts)
             elif nx != x or ny != y:
                 open_poly = None  # desplazamiento sin extruir: corta la polilínea
@@ -135,6 +137,8 @@ def parse_gcode(lines, max_points: int = MAX_POINTS) -> dict:
     close_layer()
     if not layers:
         raise PreviewError("El G-code no tiene capas reconocibles")
+    if min_x > max_x:  # solo había líneas de purga
+        min_x, min_y, max_x, max_y = 0, 0, 1, 1
     return {
         "layers": layers,
         "bbox": [round(min_x, 1), round(min_y, 1), round(max_x, 1), round(max_y, 1)],
