@@ -20,7 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libfuse2t64 fonts-dejavu-core ; fi \
     && rm -rf /var/lib/apt/lists/*
 
-# OrcaSlicer: AppImage oficial extraído en /opt/orca (no necesita FUSE)
+# OrcaSlicer: AppImage oficial extraído en /opt/orca (no necesita FUSE).
+# La 2.5 trae los perfiles compilados (.opc), así que los JSON fuente de esa
+# misma versión se toman del repo oficial con un clone parcial (/opt/orca-profiles).
 RUN if [ "$WITH_SLICER" = "1" ]; then \
         arch="$(dpkg --print-architecture)"; \
         case "$arch" in amd64) suffix="";; arm64) suffix="_aarch64";; *) echo "Arquitectura no soportada: $arch"; exit 1;; esac; \
@@ -29,7 +31,16 @@ RUN if [ "$WITH_SLICER" = "1" ]; then \
         && chmod +x /tmp/orca.AppImage && cd /opt \
         && /tmp/orca.AppImage --appimage-extract >/dev/null \
         && mv squashfs-root orca && rm /tmp/orca.AppImage \
-        && echo "$ORCA_VERSION" > /opt/orca/VERSION; \
+        && echo "$ORCA_VERSION" > /opt/orca/VERSION \
+        && apt-get update && apt-get install -y --no-install-recommends git \
+        && git clone -q --depth 1 --branch "v${ORCA_VERSION}" --filter=blob:none --sparse \
+             https://github.com/OrcaSlicer/OrcaSlicer.git /tmp/orca-src \
+        && git -C /tmp/orca-src sparse-checkout set resources/profiles/BBL resources/profiles/OrcaFilamentLibrary \
+        && mkdir -p /opt/orca-profiles \
+        && cp -r /tmp/orca-src/resources/profiles/BBL /opt/orca-profiles/ \
+        && (cp -r /tmp/orca-src/resources/profiles/OrcaFilamentLibrary /opt/orca-profiles/ || true) \
+        && rm -rf /tmp/orca-src && apt-get purge -y git && apt-get autoremove -y \
+        && rm -rf /var/lib/apt/lists/*; \
     fi
 
 WORKDIR /app

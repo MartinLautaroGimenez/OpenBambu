@@ -24,6 +24,7 @@ MACHINE_FOR_MODEL = {
 }
 
 DEFAULT_PROFILE_DIRS = [
+    "/opt/orca-profiles/BBL",
     "/opt/orca/resources/profiles/BBL",
     "/opt/orca/squashfs-root/resources/profiles/BBL",
 ]
@@ -66,19 +67,26 @@ def profiles_dir() -> Path | None:
 class ProfileLibrary:
     """Índice de perfiles por nombre dentro de un directorio de vendor."""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, extra_roots: list[Path] | None = None):
         self.root = root
         self.by_name: dict[str, tuple[str, Path]] = {}
         self._raw: dict[str, dict] = {}
         self._resolved: dict[str, dict] = {}
-        for kind, path, text in self._iter_files(root):
-            try:
-                data = json.loads(text)
-            except ValueError:
-                continue
-            if isinstance(data, dict) and data.get("name"):
-                self.by_name[data["name"]] = (kind, path)
-                self._raw[data["name"]] = data
+        # Raíces extra (ej. OrcaFilamentLibrary): solo para resolver herencia
+        self._listable: set[str] = set()
+        for i, r in enumerate([root, *(extra_roots or [])]):
+            for kind, path, text in self._iter_files(r):
+                try:
+                    data = json.loads(text)
+                except ValueError:
+                    continue
+                if isinstance(data, dict) and data.get("name"):
+                    if data["name"] in self._raw and i > 0:
+                        continue  # el vendor tiene prioridad
+                    self.by_name[data["name"]] = (kind, path)
+                    self._raw[data["name"]] = data
+                    if i == 0:
+                        self._listable.add(data["name"])
 
     @staticmethod
     def _iter_files(root: Path):
@@ -126,7 +134,7 @@ class ProfileLibrary:
     def _listed(self, kind: str, machine: str) -> list[dict]:
         out = []
         for name, (k, _) in self.by_name.items():
-            if k != kind:
+            if k != kind or name not in self._listable:
                 continue
             raw = self.raw(name)
             if str(raw.get("instantiation", "true")).lower() != "true":
@@ -193,7 +201,10 @@ def _num(v) -> float | None:
 @lru_cache(maxsize=1)
 def get_library() -> ProfileLibrary | None:
     d = profiles_dir()
-    return ProfileLibrary(d) if d else None
+    if not d:
+        return None
+    extra = d.parent / "OrcaFilamentLibrary"
+    return ProfileLibrary(d, [extra] if extra.is_dir() else None)
 
 
 # ---- ajustes que se pueden cambiar desde la app ---------------------------------
