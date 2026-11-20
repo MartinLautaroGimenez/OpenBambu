@@ -91,11 +91,12 @@ class QueueManager:
         jobs = self.store.jobs(pid)
         for j in jobs:
             j["upload_progress"] = self.upload_progress.get(j["id"])
-        queued = [j for j in jobs if j["status"] == "queued"]
+        ready = self.store.next_queued(pid)
         printer = self.printers[pid].state.snapshot()
-        waiting_bed = bool(queued) and not st["bed_clear"] and not st["paused"] and printer["state"] in READY \
-            and self.store.active_job(pid) is None
-        return {**st, "waiting_bed_clear": waiting_bed, "jobs": jobs}
+        waiting_bed = ready is not None and not st["bed_clear"] and not st["paused"] \
+            and printer["state"] in READY and self.store.active_job(pid) is None
+        return {**st, "waiting_bed_clear": waiting_bed, "next_scheduled": self.store.next_scheduled(pid),
+                "jobs": jobs}
 
     def confirm_bed_clear(self, pid: str) -> None:
         self.store.set_queue_state(pid, bed_clear=True)

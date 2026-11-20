@@ -170,3 +170,22 @@ def test_rejects_non_3mf(client):
     assert r.status_code == 200 and r.json()["meta"] == {"sliced": False, "plates": [], "format": "stl"}
     r = client.put("/api/library?filename=x.3mf", content=b"not a zip", headers=H)
     assert r.status_code == 422
+
+
+def test_scheduled_job_waits_until_time(client):
+    item = client.put("/api/library?filename=noche.gcode.3mf", content=make_3mf(), headers=H).json()
+    mapping = [{"filament_id": 1, "tray": 0}, {"filament_id": 3, "tray": 254}]
+    at = time.time() + 3
+    q = client.post("/api/printers/sim/queue", json={"library_id": item["id"], "mapping": mapping,
+                                                     "start_after": at, "bed_clear": True}, headers=H).json()
+    assert q["jobs"][0]["start_after"] == at and q["next_scheduled"] == at
+    assert not q["waiting_bed_clear"]  # todavía no es la hora
+    time.sleep(1.5)
+    assert client.get("/api/printers/sim/status", headers=H).json()["state"] == "IDLE"
+    assert wait(lambda: client.get("/api/printers/sim/status", headers=H).json()["state"] in ("PREPARE", "RUNNING"),
+                timeout=12)
+    # validaciones
+    bad = {"library_id": item["id"], "mapping": mapping, "start_after": time.time() - 3600}
+    assert client.post("/api/printers/sim/queue", json=bad, headers=H).status_code == 422
+    bad = {**bad, "start_after": time.time() + 60, "start_now": True}
+    assert client.post("/api/printers/sim/queue", json=bad, headers=H).status_code == 422

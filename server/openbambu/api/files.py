@@ -220,6 +220,8 @@ class JobIn(BaseModel):
     # Al frente de la cola y confirmando que la cama está libre
     start_now: bool = False
     bed_clear: bool = False
+    # Hora de inicio programada (epoch en segundos); None = cuando la impresora esté libre
+    start_after: float | None = None
 
 
 @router.get("/printers/{printer_id}/queue")
@@ -238,6 +240,12 @@ async def add_job(body: JobIn, printer_id: str, p: BasePrinter = Depends(printer
     missing = [f["id"] for f in plate["filaments"] if mapped.get(f["id"]) is None]
     if missing:
         raise HTTPException(422, f"Falta asignar bandeja a los filamentos {missing}")
+    if body.start_after is not None:
+        import time as _t
+        if body.start_now:
+            raise HTTPException(422, "Elegí imprimir ya o programar, no las dos")
+        if body.start_after < _t.time() - 60 or body.start_after > _t.time() + 30 * 86400:
+            raise HTTPException(422, "La hora programada tiene que ser en los próximos 30 días")
     if body.start_now and p.state.snapshot()["state"] in ("RUNNING", "PAUSE", "PREPARE"):
         raise HTTPException(409, "La impresora está ocupada; agregalo a la cola")
 
@@ -248,7 +256,7 @@ async def add_job(body: JobIn, printer_id: str, p: BasePrinter = Depends(printer
         # Con start_now, las copias van al frente manteniendo su orden
         jobs.append(mgr.store.add_job(printer_id, item["id"], label, body.plate,
                                       [m.model_dump() for m in body.mapping], body.options.model_dump(),
-                                      front=False))
+                                      front=False, start_after=body.start_after))
     if body.start_now:
         ids = [j["id"] for j in jobs] + [j["id"] for j in mgr.store.jobs(printer_id)
                                           if j["status"] == "queued" and j["id"] not in {x["id"] for x in jobs}]

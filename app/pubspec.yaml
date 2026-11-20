@@ -43,6 +43,8 @@ dependencies:
   flutter_foreground_task: ^11.0.3
   url_launcher: ^6.3.3
   file_picker: ^13.4.0
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

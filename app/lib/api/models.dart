@@ -294,6 +294,7 @@ class QueueJob {
   final double? uploadProgress;
   final DateTime created;
   final DateTime? finished;
+  final DateTime? startAfter;
 
   QueueJob.fromJson(Map<String, dynamic> j)
     : id = _i(j['id']),
@@ -304,9 +305,13 @@ class QueueJob {
       error = j['error'],
       uploadProgress = j['upload_progress'] == null ? null : _d(j['upload_progress']),
       created = DateTime.fromMillisecondsSinceEpoch((_d(j['created']) * 1000).round()),
+      startAfter = j['start_after'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch((_d(j['start_after']) * 1000).round()),
       finished = j['finished'] == null ? null : DateTime.fromMillisecondsSinceEpoch((_d(j['finished']) * 1000).round());
 
   bool get isQueued => status == 'queued';
+  bool get isScheduled => isQueued && startAfter != null && startAfter!.isAfter(DateTime.now());
   bool get isActive => status == 'uploading' || status == 'starting' || status == 'printing';
   bool get isHistory => !isQueued && !isActive;
 

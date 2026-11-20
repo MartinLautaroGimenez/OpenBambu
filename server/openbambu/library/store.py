@@ -88,6 +88,10 @@ class Store:
         self._lock = threading.Lock()
         with self._lock:
             self._db.executescript(SCHEMA)
+            # Migración: hora programada de inicio
+            cols = {r[1] for r in self._db.execute("PRAGMA table_info(jobs)")}
+            if "start_after" not in cols:
+                self._db.execute("ALTER TABLE jobs ADD COLUMN start_after REAL")
             # Trabajos que quedaron a medio arrancar si el servidor se reinició
             self._db.execute(
                 "UPDATE jobs SET status='queued' WHERE status IN ('uploading','starting')"
@@ -150,7 +154,8 @@ class Store:
         return d
 
     def add_job(self, printer_id: str, library_id: str, name: str, plate: int,
-                ams_mapping: list[int], options: dict, front: bool = False) -> dict:
+                ams_mapping: list[int], options: dict, front: bool = False,
+                start_after: float | None = None) -> dict:
         rows = self._q(
             f"SELECT {'MIN' if front else 'MAX'}(position) AS p FROM jobs WHERE printer_id=? AND status='queued'",
             (printer_id,),
@@ -159,9 +164,10 @@ class Store:
         pos = (p - 1 if front else p + 1) if p is not None else 0.0
         with self._lock:
             cur = self._db.execute(
-                "INSERT INTO jobs (printer_id, library_id, name, plate, ams_mapping, options, status, position, created)"
-                " VALUES (?,?,?,?,?,?,'queued',?,?)",
-                (printer_id, library_id, name, plate, json.dumps(ams_mapping), json.dumps(options), pos, time.time()),
+                "INSERT INTO jobs (printer_id, library_id, name, plate, ams_mapping, options, status, position, created,"
+                " start_after) VALUES (?,?,?,?,?,?,'queued',?,?,?)",
+                (printer_id, library_id, name, plate, json.dumps(ams_mapping), json.dumps(options), pos, time.time(),
+                 start_after),
             )
             self._db.commit()
             jid = cur.lastrowid
@@ -185,11 +191,19 @@ class Store:
         open_jobs = sorted((self._job(r) for r in open_), key=lambda j: (j["status"] == "queued", j["position"]))
         return open_jobs + [self._job(r) for r in done]
 
-    def next_queued(self, printer_id: str) -> dict | None:
+    def next_queued(self, printer_id: str, now: float | None = None) -> dict | None:
+        """Próximo trabajo listo para arrancar (respeta la hora programada)."""
+        now = time.time() if now is None else now
         rows = self._q(
-            "SELECT * FROM jobs WHERE printer_id=? AND status='queued' ORDER BY position LIMIT 1", (printer_id,)
+            "SELECT * FROM jobs WHERE printer_id=? AND status='queued' AND (start_after IS NULL OR start_after<=?)"
+            " ORDER BY position LIMIT 1", (printer_id, now)
         )
         return self._job(rows[0]) if rows else None
+
+    def next_scheduled(self, printer_id: str) -> float | None:
+        rows = self._q("SELECT MIN(start_after) AS t FROM jobs WHERE printer_id=? AND status='queued'"
+                       " AND start_after>?", (printer_id, time.time()))
+        return rows[0]["t"] if rows else None
 
     def active_job(self, printer_id: str) -> dict | None:
         rows = self._q(

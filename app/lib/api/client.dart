@@ -317,6 +317,7 @@ class ApiClient {
     int copies = 1,
     bool startNow = false,
     bool bedClear = false,
+    DateTime? startAfter,
   }) async => QueueState.fromJson(
     await _req(
       'POST',
@@ -329,6 +330,7 @@ class ApiClient {
         'copies': copies,
         'start_now': startNow,
         'bed_clear': bedClear,
+        if (startAfter != null) 'start_after': startAfter.millisecondsSinceEpoch / 1000,
       },
     ),
   );

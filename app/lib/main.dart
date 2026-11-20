@@ -34,6 +34,9 @@ class OpenBambuApp extends StatelessWidget {
       child: MaterialApp(
         title: 'OpenBambu',
         debugShowCheckedModeBanner: false,
+        locale: const Locale('es'),
+        supportedLocales: const [Locale('es'), Locale('en')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: ThemeMode.dark,

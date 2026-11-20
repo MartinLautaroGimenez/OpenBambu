@@ -603,6 +603,8 @@ class _JobTile extends StatelessWidget {
                 ? 'Subiendo a la impresora ${job.uploadProgress!.round()}%'
                 : job.error != null
                 ? '${job.statusLabel}: ${job.error}'
+                : job.isScheduled
+                ? 'Programado: ${formatClock(job.startAfter!)}'
                 : job.statusLabel,
             style: TextStyle(color: color, fontWeight: FontWeight.w600),
           ),

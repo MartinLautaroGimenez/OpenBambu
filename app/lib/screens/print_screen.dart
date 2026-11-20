@@ -51,6 +51,75 @@ class _PrintScreenState extends State<PrintScreen> {
 
   bool get _complete => _mapping.isNotEmpty && _mapping.every((m) => m.tray != null) || _plate.filaments.isEmpty;
 
+  Future<void> _schedule() async {
+    final s = context.read<AppState>();
+    final api = s.api;
+    if (api == null) return;
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 30)),
+      helpText: 'Día de inicio',
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
+      helpText: 'Hora de inicio',
+    );
+    if (time == null || !mounted) return;
+    final at = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    if (at.isBefore(now)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Elegí una hora futura')));
+      return;
+    }
+    final bedClear = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('¿La cama va a estar libre?'),
+        content: Text(
+          'Si confirmás, arranca solo a las ${formatClock(at)}${_copies > 1 ? ' (la primera copia)' : ''}. '
+          'Si no, a esa hora te pide confirmar que retiraste la pieza.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Preguntarme')),
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Sí, va a estar libre'),
+          ),
+        ],
+      ),
+    );
+    if (bedClear == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      final q = await api.addJob(
+        widget.printerId,
+        libraryId: widget.item.id,
+        plate: _plate.index,
+        mapping: _mapping,
+        options: _options,
+        copies: _copies,
+        bedClear: bedClear,
+        startAfter: at,
+      );
+      s.setQueue(widget.printerId, q);
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Programado para ${formatClock(at)}')));
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message), backgroundColor: AppColors.danger));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _submit({required bool now}) async {
     final s = context.read<AppState>();
     final api = s.api;
@@ -291,6 +360,11 @@ class _PrintScreenState extends State<PrintScreen> {
                   padding: EdgeInsets.only(bottom: 8),
                   child: Text('Asigná una bandeja a cada filamento', style: TextStyle(color: AppColors.warning)),
                 ),
+              TextButton.icon(
+                onPressed: _busy || !_complete ? null : _schedule,
+                icon: const Icon(Icons.schedule_rounded),
+                label: const Text('Programar para más tarde'),
+              ),
               Row(
                 children: [
                   Expanded(
