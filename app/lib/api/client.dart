@@ -264,6 +264,34 @@ class ApiClient {
   Future<Map<String, dynamic>> setPower(String printerId, bool on, {bool force = false}) async =>
       (await _req('POST', '/printers/$printerId/power', body: {'on': on, 'force': force})) as Map<String, dynamic>;
 
+  // ---- administración de impresoras -----------------------------------
+  Future<List<AdminPrinter>> adminPrinters() async => [
+    for (final x in (await _req('GET', '/admin/printers')) as List) AdminPrinter.fromJson(x),
+  ];
+
+  Future<AdminPrinter> savePrinter(Map<String, dynamic> data, {String? id}) async => AdminPrinter.fromJson(
+    await _req(id == null ? 'POST' : 'PUT', id == null ? '/admin/printers' : '/admin/printers/$id', body: data),
+  );
+
+  Future<void> deletePrinter(String id) => _req('DELETE', '/admin/printers/$id');
+
+  Future<({bool ok, String message})> testPrinter(String host, String serial, String code, {String? id}) async {
+    final r = await _req(
+      'POST',
+      '/admin/printers/test',
+      body: {'host': host, 'serial': serial, 'access_code': code, 'printer_id': ?id},
+    );
+    return (ok: r['ok'] == true, message: '${r['message']}');
+  }
+
+  Future<({List<DiscoveredPrinter> printers, String? error})> discover() async {
+    final r = await _req('GET', '/admin/discovery');
+    return (
+      printers: [for (final x in (r['printers'] as List)) DiscoveredPrinter.fromJson(x)],
+      error: r['error'] as String?,
+    );
+  }
+
   // ---- tarjeta SD -----------------------------------------------------
   Future<List<SdFile>> sdFiles(String printerId, String path) async => [
     for (final x in (await _req('GET', '/printers/$printerId/files', query: {'path': path})) as List)

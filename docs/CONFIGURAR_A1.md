@@ -33,9 +33,13 @@ Tiene la forma `03919A3B1234567` (15 caracteres).
 
 Reservá la IP de la impresora en tu router (DHCP estático) para que no cambie.
 
-## 4. Configurar el servidor
+## 4. Agregarla en OpenBambu
 
-`data/config.yaml`:
+Lo más fácil es desde la app: **Impresora → Agregar impresora**. La impresora aparece
+sola si está en la misma red que el servidor; solo falta el código de acceso.
+Con **Probar conexión** te avisa si la IP, el número de serie o el código están mal.
+
+También se puede definir en `data/config.yaml` (queda de solo lectura en la app):
 
 ```yaml
 printers:

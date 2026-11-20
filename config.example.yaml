@@ -4,6 +4,9 @@
 # automáticamente y se muestra en los logs (docker logs openbambu).
 api_token: ""
 
+# Las impresoras se agregan desde la app (Impresora → Agregar impresora) y se
+# guardan en data/printers.json. Si preferís, también se pueden definir acá
+# (quedan de solo lectura en la app):
 printers:
   - id: a1
     name: Mi A1

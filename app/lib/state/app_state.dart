@@ -132,6 +132,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         }
       case 'queue':
         refreshQueue(msg['printer_id']);
+      case 'printers':
+        reloadPrinters();
       case 'history':
         historyVersion++;
         refreshSpools();
@@ -162,6 +164,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (!store.configured || !_foreground) return;
     _reconnect = Timer(Duration(seconds: _backoff), _connect);
     _backoff = (_backoff * 2).clamp(1, 30);
+  }
+
+  /// La lista de impresoras cambió en el servidor: reconectar para recibir todas.
+  void reloadPrinters() {
+    _disconnect();
+    printers.clear();
+    _connect();
   }
 
   void retryNow() {

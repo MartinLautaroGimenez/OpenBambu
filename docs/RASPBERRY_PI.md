@@ -28,11 +28,18 @@ curl -fsSL https://raw.githubusercontent.com/MartinLautaroGimenez/OpenBambu/ccr-
 El instalador:
 1. Instala Docker si no está.
 2. Descarga OpenBambu en `~/openbambu`.
-3. Te pide la **IP**, el **número de serie** y el **código de acceso** de la impresora ([cómo obtenerlos](CONFIGURAR_A1.md)). Si dejás la IP vacía, usa el simulador.
+3. Te pregunta si querés notificaciones push por ntfy (opcional).
 4. Construye e inicia el servidor. La primera vez tarda unos 5 minutos.
 5. Te muestra la **dirección** y el **token** para cargar en la app.
 
 El servidor arranca solo cada vez que se enciende la Pi.
+
+## Agregar la impresora (desde la app)
+
+En la app: **Impresora → Agregar impresora** (o Ajustes → Impresoras). Las Bambu Lab
+prendidas en tu red aparecen solas con su IP, modelo y número de serie: tocá **Usar**,
+escribí el **código de acceso** ([dónde está](CONFIGURAR_A1.md)), **Probar conexión** y **Agregar**.
+Podés agregar varias impresoras y también una impresora de prueba (simulador).
 
 ## Probar el laminador
 

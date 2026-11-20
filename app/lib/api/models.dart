@@ -620,3 +620,45 @@ class Spool {
   double get fraction => weightG > 0 ? (remainingG / weightG).clamp(0, 1) : 0;
   double get pricePerGram => weightG > 0 ? price / weightG : 0;
 }
+
+// ---- Administración de impresoras ---------------------------------------------
+
+class AdminPrinter {
+  final String id;
+  final String name;
+  final String model;
+  final String host;
+  final String serial;
+  final String mode;
+  final bool hasAccessCode;
+  final bool editable;
+  final bool connected;
+
+  AdminPrinter.fromJson(Map<String, dynamic> j)
+    : id = j['id'],
+      name = j['name'] ?? j['id'],
+      model = j['model'] ?? 'A1',
+      host = j['host'] ?? '',
+      serial = j['serial'] ?? '',
+      mode = j['mode'] ?? 'lan',
+      hasAccessCode = j['has_access_code'] == true,
+      editable = j['editable'] != false,
+      connected = j['connected'] == true;
+}
+
+class DiscoveredPrinter {
+  final String serial;
+  final String host;
+  final String name;
+  final String? model;
+  final String? connection;
+  final bool added;
+
+  DiscoveredPrinter.fromJson(Map<String, dynamic> j)
+    : serial = j['serial'],
+      host = j['host'] ?? '',
+      name = j['name'] ?? j['serial'],
+      model = j['model'],
+      connection = j['connection'],
+      added = j['added'] == true;
+}

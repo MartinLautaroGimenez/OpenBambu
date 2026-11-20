@@ -56,44 +56,20 @@ fi
 cd "$DIR"
 mkdir -p data
 
-# 3. Configuración de la impresora (solo la primera vez)
+# 3. Configuración inicial (solo la primera vez). Las impresoras se agregan
+#    desde la app: Impresora → Agregar impresora (detecta las de la red).
 if [ ! -f data/config.yaml ]; then
   echo
-  verde "Datos de la impresora (ver docs/CONFIGURAR_A1.md)."
-  echo "Dejá la IP vacía para usar el simulador y probar sin impresora."
-  preguntar "IP de la impresora (ej. 192.168.1.50)" ip
-  if [ -z "$ip" ]; then
-    cat > data/config.yaml <<EOF
-printers:
-  - id: a1
-    name: Simulador
-    model: A1
-    mode: simulator
-EOF
-  else
-    preguntar "Número de serie (15 caracteres)" serial
-    preguntar "Código de acceso (8 caracteres)" code
-    preguntar "Nombre" name "Mi A1"
-    preguntar "Modelo (A1, A1MINI, P1P, P1S)" model "A1"
-    preguntar "Topic de ntfy para notificaciones push (vacío = no usar)" topic
-    cat > data/config.yaml <<EOF
-printers:
-  - id: a1
-    name: "$name"
-    model: $model
-    host: $ip
-    serial: "$serial"
-    access_code: "$code"
-    mode: lan
-
+  preguntar "Topic de ntfy para notificaciones push (vacío = no usar)" topic
+  cat > data/config.yaml <<CFG
+# Las impresoras se agregan desde la app (se guardan en data/printers.json).
 notifications:
   progress_step: 25
   ntfy:
     enabled: $([ -n "$topic" ] && echo true || echo false)
     url: https://ntfy.sh
     topic: "$topic"
-EOF
-  fi
+CFG
   chmod 600 data/config.yaml
   verde "-> Configuración guardada en $DIR/data/config.yaml"
 else
@@ -118,7 +94,8 @@ echo
 verde "=============================================="
 verde " OpenBambu está corriendo"
 verde "=============================================="
-echo  " En la app ingresá:"
+echo  " En la app ingresá estos datos y después agregá tu impresora"
+echo  " (Impresora → Agregar impresora: aparece sola si está en la misma red):"
 echo  "   Servidor: $ip_pi:8787"
 echo  "   Token:    ${token:-(ver: sudo docker compose -f $DIR/docker-compose.yml logs | grep -i token)}"
 echo

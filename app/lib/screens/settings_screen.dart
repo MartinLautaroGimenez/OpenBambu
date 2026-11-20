@@ -6,6 +6,7 @@ import '../services/notifications.dart';
 import '../state/app_state.dart';
 import '../widgets/common.dart';
 import '../widgets/makerworld_login.dart';
+import 'printers_screen.dart';
 import 'setup_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -39,6 +40,16 @@ class SettingsScreen extends StatelessWidget {
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SetupScreen())),
                 ),
               ],
+            ),
+          ),
+          const SectionTitle('Impresoras'),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.print_rounded),
+              title: const Text('Impresoras del servidor'),
+              subtitle: Text('${s.printers.length} configurada(s) · agregar, editar o quitar'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrintersScreen())),
             ),
           ),
           const SectionTitle('Catálogo'),

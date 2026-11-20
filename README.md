@@ -52,11 +52,11 @@ docs/     Guías de configuración
 2. **Levantar el servidor**. En una **Raspberry Pi** alcanza con un comando, ver [docs/RASPBERRY_PI.md](docs/RASPBERRY_PI.md). En otra PC o NAS con Docker:
    ```bash
    git clone <este repo> openbambu && cd openbambu
-   mkdir -p data && cp config.example.yaml data/config.yaml   # completar los datos de la A1
+   mkdir -p data && cp config.example.yaml data/config.yaml
    docker compose up -d --build
    docker compose logs openbambu | grep -i token                # token para la app
    ```
-3. **Instalar la app**: descargá `OpenBambu.apk` desde la sección **Releases** del repo (lo compila GitHub Actions en cada cambio) e ingresá `IP-del-servidor:8787` y el token.
+3. **Instalar la app**: descargá `OpenBambu.apk` desde la sección **Releases** del repo (lo compila GitHub Actions en cada cambio) e ingresá `IP-del-servidor:8787` y el token. Después **Impresora → Agregar impresora**: las Bambu de tu red aparecen solas.
 
 ### Probar sin impresora
 
@@ -88,6 +88,7 @@ Todas las rutas (salvo `/api/health`) requieren `Authorization: Bearer <token>` 
 | POST | `/api/printers/{id}/queue/bed-clear` · `/pause` · `/reorder` | Confirmar cama libre, pausar, reordenar |
 | GET | `/api/slicer` · `/api/slicer/profiles?printer_id=` | Estado del laminador y perfiles de calidad/filamento |
 | POST | `/api/library/{id}/slice` · GET `/api/slicer/jobs/{job}` | Laminar un modelo y seguir el progreso |
+| GET/POST/PUT/DELETE | `/api/admin/printers` · POST `/api/admin/printers/test` · GET `/api/admin/discovery` | Impresoras: alta/edición/baja, probar conexión, detectar en la red |
 | GET | `/api/events?after=<id>` | Historial de eventos |
 | WS | `/api/ws?token=` | Estado y eventos en tiempo real |
 

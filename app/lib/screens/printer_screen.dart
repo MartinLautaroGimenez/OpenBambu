@@ -8,6 +8,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import 'catalog/catalog_screen.dart';
+import 'printers_screen.dart';
 import 'settings_screen.dart';
 import 'tabs/ams_tab.dart';
 import 'tabs/control_tab.dart';
@@ -235,12 +236,19 @@ class _Empty extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               state.conn == ConnState.connected
-                  ? 'El servidor no tiene impresoras configuradas.\nRevisá data/config.yaml.'
+                  ? 'Este servidor todavía no tiene impresoras.'
                   : 'No se pudo conectar con el servidor.',
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            OutlinedButton(onPressed: state.retryNow, child: const Text('Reintentar')),
+            if (state.conn == ConnState.connected)
+              FilledButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PrinterFormScreen())),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Agregar impresora'),
+              )
+            else
+              OutlinedButton(onPressed: state.retryNow, child: const Text('Reintentar')),
           ],
         ),
       ),
