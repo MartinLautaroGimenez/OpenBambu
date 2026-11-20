@@ -8,6 +8,7 @@ Software libre para controlar impresoras **Bambu Lab** (pensado para la **A1**, 
 
 | | |
 |---|---|
+| 🔎 **Explorar (pantalla de inicio)** | Catálogo de modelos de **MakerWorld** y **Printables** (y Thingiverse con token): populares, buscador, fotos, perfiles de impresión; se descargan a la biblioteca y se laminan o imprimen con un toque |
 | 📷 **Cámara en vivo** | Stream de la cámara de la A1, pantalla completa con zoom |
 | 📊 **Estado** | Progreso, capa, tiempo restante, hora de fin, etapa actual (nivelando, calentando…) |
 | ⏯ **Control de impresión** | Pausar, reanudar, detener, velocidad (Silencioso / Estándar / Sport / Ludicrous) |
@@ -19,6 +20,10 @@ Software libre para controlar impresoras **Bambu Lab** (pensado para la **A1**, 
 | 🧾 **Cola de impresión** | Copias, reordenar, pausar; entre trabajo y trabajo espera que confirmes **"cama libre"** (también desde la notificación) |
 | 🧩 **Laminador en el servidor** | Subís un STL/OBJ/STEP/3MF y lo laminás desde el teléfono con **OrcaSlicer** y los perfiles oficiales de la A1: calidad, filamento, relleno y patrón, soportes, brim, paredes y copias en la misma placa |
 | 🎯 **Mapeo de AMS** | Asigna cada filamento del archivo a una bandeja por tipo y color; el **TPU va al carrete externo** (el AMS lite no lo admite) |
+| 🧵 **Inventario de filamento** | Carretes con marca, material, color, peso y precio, asignados a las bandejas; cada impresión descuenta los gramos y calcula el costo; avisa si no alcanza |
+| 📈 **Historial y estadísticas** | Cada impresión con foto final, duración, gramos y costo; reimprimir; éxito, horas, gasto, por mes y por material |
+| 🔌 **Enchufe (Home Assistant)** | Prender/apagar desde la app, auto-apagado al terminar y enfriarse, auto-encendido cuando la cola tiene un trabajo |
+| 🧊 **Vista previa del G-code** | Visor 3D y capa por capa, coloreado por tipo de línea o filamento |
 | 🔔 **Notificaciones** | Notificación persistente con **barra de progreso** (Live Update en Android 16), avisos de inicio, pausa, fin, falla, filamento agotado, primera capa y errores HMS. Push opcional vía **ntfy** con captura de la cámara |
 
 ## Arquitectura
@@ -105,7 +110,9 @@ cd app && flutter pub get && flutter test && flutter run
 - [x] **Etapa 1**: servidor, conexión LAN, estado, control, cámara, AMS, eventos y notificaciones
 - [x] **Etapa 2: archivos y cola**: biblioteca, tarjeta SD (FTPS), impresión con mapeo de AMS y carrete externo, cola con confirmación de "cama libre"
 - [x] **Etapa 3: laminado**: OrcaSlicer 2.5 en el contenedor (amd64 y arm64), perfiles de la A1, relleno, soportes, brim, paredes, copias, tiempo y peso estimados
-- [ ] **Etapa 4: catálogo de modelos**: buscador unificado (MakerWorld, Printables, Thingiverse, Thangs), descargar, laminar e imprimir desde el teléfono
+- [x] **Etapa 4: catálogo de modelos** como pantalla principal (MakerWorld, Printables, Thingiverse)
+- [x] Inventario de filamento, historial y estadísticas, enchufe con Home Assistant, vista previa del G-code
+- [ ] Detección de fallas con la cámara
 - [ ] **Etapa 5: iOS**: Live Activities con progreso en la pantalla de bloqueo y la Dynamic Island, y push con APNs
 - [ ] Cámara RTSP de la serie X1
 

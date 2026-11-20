@@ -27,3 +27,13 @@ notifications:
     url: https://ntfy.sh
     topic: elegi-un-nombre-largo-y-secreto
     token: ""
+
+# Catálogo de modelos (opcional). MakerWorld también se puede vincular desde
+# la app (Ajustes → Cuenta de MakerWorld).
+catalog:
+  makerworld_token: ""
+  thingiverse_token: ""   # https://www.thingiverse.com/developers
+
+# Enchufe inteligente: se configura desde la app (Impresora → Control →
+# Energía). Usá la IP de Home Assistant (ej. http://192.168.1.20:8123): dentro
+# de Docker los nombres ".local" pueden no resolver.
