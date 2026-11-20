@@ -43,7 +43,7 @@ docs/     Guías de configuración
 ## Inicio rápido
 
 1. **Preparar la A1**: activar *Modo solo LAN* y *Modo desarrollador*, anotar IP, número de serie y código de acceso → [docs/CONFIGURAR_A1.md](docs/CONFIGURAR_A1.md)
-2. **Levantar el servidor** (PC, NAS o Raspberry Pi con Docker):
+2. **Levantar el servidor**. En una **Raspberry Pi** alcanza con un comando, ver [docs/RASPBERRY_PI.md](docs/RASPBERRY_PI.md). En otra PC o NAS con Docker:
    ```bash
    git clone <este repo> openbambu && cd openbambu
    mkdir -p data && cp config.example.yaml data/config.yaml   # completar los datos de la A1
