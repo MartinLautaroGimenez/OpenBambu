@@ -39,6 +39,12 @@ async def main(model: str = "A1") -> int:
         print("ERROR: OrcaSlicer o sus perfiles no están instalados")
         for d in sorted(Path("/opt/orca").glob("**/profiles"))[:5]:
             print("  carpeta de perfiles encontrada:", d)
+            entries = sorted(d.iterdir())
+            print("   ", len(entries), "entradas:", [e.name for e in entries[:40]])
+            for e in entries:
+                if e.name.upper().startswith("BBL"):
+                    sub = sorted(e.iterdir()) if e.is_dir() else []
+                    print("   ", e.name, "->", [x.name for x in sub[:20]])
         return 1
     machine = MACHINE_FOR_MODEL[model]
     procs = lib.processes(machine)
