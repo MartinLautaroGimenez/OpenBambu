@@ -86,7 +86,11 @@ async def main(model: str = "A1") -> int:
         plate_objs = read_plate_objects(result, 1)
         print(f"Objetos (plate_1.json): {[(o['id'], o['name']) for o in plate_objs]}")
         print(f"Objetos (G-code): {[(o['id'], o.get('name')) for o in prev.get('objects', [])]}")
-        if max(len(plate_objs), len(prev.get("objects", []))) < 2:
+        from ..library.objects import merge_objects
+
+        merged = merge_objects(plate_objs, prev.get("objects", []))
+        print(f"Objetos unidos: {[(o['name'], o['aliases']) for o in merged]}")
+        if len(merged) != 2:
             print("ERROR: no se identifican los objetos para poder omitirlos")
             return 1
         if len(prev["layers"]) < 50 or "ow" not in types:

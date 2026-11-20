@@ -116,3 +116,39 @@ def test_objects_from_gcode_only_and_sd_file(tmp_path):
         # la segunda vez no vuelve a descargar
         assert c.get("/api/printers/sim/objects", headers=H).json()["library_id"] == info["library_id"]
         assert len(c.get("/api/library", headers=H).json()) == 1
+
+
+def test_merge_orca_ids_differ_between_json_and_gcode():
+    """OrcaSlicer: plate_1.json (103, 104) y el G-code (88, 69) usan ids distintos."""
+    from openbambu.library.objects import merge_objects
+
+    plate = [{"id": 103, "name": "cubo.stl", "bbox": [104.8, 80.2, 124.8, 99.8]},
+             {"id": 104, "name": "cubo.stl", "bbox": [126.4, 80.2, 146.4, 99.8]}]
+    gcode = [{"id": 88, "name": None, "bbox": [105.0, 80.5, 124.5, 99.5]},
+             {"id": 69, "name": None, "bbox": [126.6, 80.5, 146.1, 99.5]}]
+    m = merge_objects(plate, gcode)
+    assert [(o["id"], o["aliases"], o["name"]) for o in m] == [(88, [88, 103], "cubo.stl"), (69, [69, 104], "cubo.stl")]
+    # Sin plate_1.json: solo los del G-code
+    assert [o["aliases"] for o in merge_objects([], gcode)] == [[88], [69]]
+    # Sin marcas en el G-code: solo los de plate_1.json
+    assert [o["id"] for o in merge_objects(plate, [])] == [103, 104]
+
+
+def test_skip_sends_all_aliases(tmp_path):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("Metadata/plate_1.gcode", bambu_gcode(ids=(88, 69)))
+        z.writestr("Metadata/plate_1.json", json.dumps({"bbox_objects": [
+            {"id": 103, "name": "A.stl", "bbox": [20, 30, 30, 40]}, {"id": 104, "name": "B.stl", "bbox": [60, 30, 70, 40]}]}))
+        z.writestr("Metadata/slice_info.config", '<config><plate><metadata key="index" value="1"/>'
+                   '<filament id="1" type="PLA" color="#FFFFFF" used_g="3"/></plate></config>')
+    with client(tmp_path) as c:
+        sim = c.app.state.manager.printers["sim"]
+        sim.auto_demo = False
+        time.sleep(0.6)
+        start_print(c, sim, buf.getvalue())
+        objs = c.get("/api/printers/sim/objects", headers=H).json()["objects"]
+        assert [(o["id"], o["name"]) for o in objs] == [(88, "A.stl"), (69, "B.stl")]
+        r = c.post("/api/printers/sim/objects/skip", json={"ids": [69]}, headers=H).json()
+        assert sim.p["s_obj"] == [69, 104]
+        assert [o["skipped"] for o in r["objects"]] == [False, True]
