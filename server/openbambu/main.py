@@ -15,6 +15,7 @@ from .api.catalog import router as catalog_router
 from .api.files import router as files_router
 from .api.history import router as history_router
 from .api.power import router as power_router
+from .api.printers_admin import router as admin_router
 from .api.routes import router
 from .api.slicer import router as slicer_router
 from .config import Settings, load_settings
@@ -41,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(catalog_router)
     app.include_router(history_router)
     app.include_router(power_router)
+    app.include_router(admin_router)
     return app
 
 

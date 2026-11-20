@@ -306,6 +306,13 @@ async def websocket(ws: WebSocket, token: str | None = None):
 
     mgr.history.listeners.append(on_history)
 
+    def on_printers() -> None:
+        with contextlib.suppress(asyncio.QueueFull):
+            queue.put_nowait({"type": "printers"})
+        wake.set()
+
+    mgr.printer_listeners.append(on_printers)
+
     async def sender():
         for pid, p in mgr.printers.items():
             await ws.send_text(json.dumps({"type": "status", "printer_id": pid, "data": p.state.snapshot()}))
@@ -342,3 +349,5 @@ async def websocket(ws: WebSocket, token: str | None = None):
             mgr.slicer.listeners.remove(on_slice)
         if on_history in mgr.history.listeners:
             mgr.history.listeners.remove(on_history)
+        if on_printers in mgr.printer_listeners:
+            mgr.printer_listeners.remove(on_printers)

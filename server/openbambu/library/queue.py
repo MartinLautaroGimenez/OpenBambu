@@ -38,21 +38,32 @@ class QueueManager:
         self._wake: dict[str, asyncio.Event] = {}
         self._prev_state: dict[str, str] = {}
         self._asked_bed: dict[str, int] = {}
-        self._tasks: list[asyncio.Task] = []
+        self._tasks: dict[str, asyncio.Task] = {}
         self.power = None  # PowerManager (opcional)
         self._powering: set[str] = set()
 
     # ---- ciclo de vida -------------------------------------------------
     def start(self) -> None:
         for pid in self.printers:
-            self._wake[pid] = asyncio.Event()
-            self._tasks.append(asyncio.create_task(self._loop(pid), name=f"queue-{pid}"))
+            self.add_printer(pid)
 
-    async def stop(self) -> None:
-        for t in self._tasks:
+    def add_printer(self, pid: str) -> None:
+        if pid in self._tasks:
+            return
+        self._wake[pid] = asyncio.Event()
+        self._tasks[pid] = asyncio.create_task(self._loop(pid), name=f"queue-{pid}")
+
+    async def remove_printer(self, pid: str) -> None:
+        t = self._tasks.pop(pid, None)
+        self._wake.pop(pid, None)
+        if t:
             t.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await t
+
+    async def stop(self) -> None:
+        for pid in list(self._tasks):
+            await self.remove_printer(pid)
 
     def wake(self, pid: str) -> None:
         if ev := self._wake.get(pid):
