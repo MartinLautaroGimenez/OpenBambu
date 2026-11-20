@@ -6,6 +6,7 @@ import '../api/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'gcode_preview_screen.dart';
 
 /// Configurar e iniciar (o encolar) la impresión de un archivo laminado.
 class PrintScreen extends StatefulWidget {
@@ -121,6 +122,13 @@ class _PrintScreenState extends State<PrintScreen> {
     }
   }
 
+  void _openPreview() => Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => GcodePreviewScreen(item: widget.item, plate: _plate),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
@@ -130,7 +138,16 @@ class _PrintScreenState extends State<PrintScreen> {
     final busyPrinter = printer?.status.isActive ?? true;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.item.name, overflow: TextOverflow.ellipsis)),
+      appBar: AppBar(
+        title: Text(widget.item.name, overflow: TextOverflow.ellipsis),
+        actions: [
+          IconButton(
+            tooltip: 'Vista previa por capas',
+            icon: const Icon(Icons.layers_rounded),
+            onPressed: _openPreview,
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 140),
         children: [
@@ -139,9 +156,24 @@ class _PrintScreenState extends State<PrintScreen> {
             child: Container(
               height: 220,
               color: t.colorScheme.surfaceContainer,
-              child: _plate.thumbnail && api != null
-                  ? Image.network(api.thumbnail(widget.item.id, _plate.index).toString(), fit: BoxFit.contain)
-                  : const Icon(Icons.view_in_ar_rounded, size: 64),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _plate.thumbnail && api != null
+                      ? Image.network(api.thumbnail(widget.item.id, _plate.index).toString(), fit: BoxFit.contain)
+                      : const Icon(Icons.view_in_ar_rounded, size: 64),
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: FilledButton.tonalIcon(
+                      style: FilledButton.styleFrom(minimumSize: const Size(0, 38)),
+                      onPressed: _openPreview,
+                      icon: const Icon(Icons.layers_rounded, size: 18),
+                      label: const Text('Ver capas'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 14),
