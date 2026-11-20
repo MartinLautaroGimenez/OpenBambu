@@ -11,7 +11,7 @@ import 'catalog/catalog_screen.dart';
 import 'settings_screen.dart';
 import 'tabs/ams_tab.dart';
 import 'tabs/control_tab.dart';
-import 'tabs/events_tab.dart';
+import 'tabs/activity_tab.dart';
 import 'tabs/print_tab.dart';
 import 'tabs/status_tab.dart';
 
@@ -110,7 +110,7 @@ class _PrinterScreenState extends State<PrinterScreen> {
         ),
         _ => Scaffold(
           appBar: AppBar(titleSpacing: 20, title: const Text('Actividad'), actions: [settings]),
-          body: EventsTab(printer: p),
+          body: ActivityTab(printer: p),
         ),
       };
     }

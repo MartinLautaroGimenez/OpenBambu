@@ -222,6 +222,32 @@ class ApiClient {
       LibraryItem.fromJson(x),
   ];
 
+  // ---- historial e inventario -----------------------------------------
+  Future<List<PrintRecord>> history({String? printerId, int offset = 0}) async => [
+    for (final x in (await _req(
+      'GET',
+      '/history',
+      query: {'printer_id': ?printerId, 'offset': '$offset', 'limit': '30'},
+    )) as List)
+      PrintRecord.fromJson(x),
+  ];
+
+  Future<PrintStats> stats({String? printerId}) async =>
+      PrintStats.fromJson(await _req('GET', '/history/stats', query: {'printer_id': ?printerId}));
+
+  String historySnapshot(int id) => uri('/history/$id/snapshot.jpg', {'token': token}).toString();
+
+  Future<void> deleteHistory(int id) => _req('DELETE', '/history/$id');
+
+  Future<List<Spool>> spools() async => [for (final x in (await _req('GET', '/spools')) as List) Spool.fromJson(x)];
+
+  Future<Spool> addSpool(Map<String, dynamic> data) async => Spool.fromJson(await _req('POST', '/spools', body: data));
+
+  Future<Spool> updateSpool(int id, Map<String, dynamic> data) async =>
+      Spool.fromJson(await _req('PATCH', '/spools/$id', body: data));
+
+  Future<void> deleteSpool(int id) => _req('DELETE', '/spools/$id');
+
   // ---- tarjeta SD -----------------------------------------------------
   Future<List<SdFile>> sdFiles(String printerId, String path) async => [
     for (final x in (await _req('GET', '/printers/$printerId/files', query: {'path': path})) as List)

@@ -1,6 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:provider/provider.dart';
+
 import '../../api/models.dart';
+import '../../state/app_state.dart';
+import '../inventory_screen.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 
@@ -68,7 +72,12 @@ class AmsTab extends StatelessWidget {
                 children: [
                   for (final t in unit.trays)
                     Expanded(
-                      child: _Spool(tray: t, label: 'A${t.id + 1}', onTap: () => _trayMenu(context, t, busy)),
+                      child: Column(
+                        children: [
+                          _Spool(tray: t, label: 'A${t.id + 1}', onTap: () => _trayMenu(context, t, busy)),
+                          _InventoryHint(printerId: printer.id, tray: t.globalId),
+                        ],
+                      ),
                     ),
                 ],
               ),
@@ -85,13 +94,25 @@ class AmsTab extends StatelessWidget {
                 s.externalSpool!.loaded ? (s.externalSpool!.name ?? 'Externo') : 'Vacío',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              subtitle: Text(s.externalSpool!.active ? 'En uso' : (s.externalSpool!.type ?? 'Sin configurar')),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(s.externalSpool!.active ? 'En uso' : (s.externalSpool!.type ?? 'Sin configurar')),
+                  _InventoryHint(printerId: printer.id, tray: 254, alignStart: true),
+                ],
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => _trayMenu(context, s.externalSpool!, busy),
             ),
           ),
         ],
         const SectionTitle('Acciones'),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const InventoryScreen())),
+          icon: const Icon(Icons.inventory_2_rounded),
+          label: const Text('Inventario de filamento'),
+        ),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -157,6 +178,20 @@ class AmsTab extends StatelessWidget {
                 act(context, (api, id) => api.amsLoad(id, t.globalId), success: 'Cargando $name…');
               },
             ),
+            Builder(
+              builder: (_) {
+                final spool = context.read<AppState>().spoolInTray(printer.id, t.globalId);
+                return ListTile(
+                  leading: const Icon(Icons.inventory_2_rounded),
+                  title: Text(spool == null ? 'Asignar carrete del inventario' : 'Carrete: ${spool.label}'),
+                  subtitle: spool == null ? null : Text('Quedan ${spool.remainingG.round()} g · tocá para editar'),
+                  onTap: () {
+                    Navigator.pop(c);
+                    _assignSpool(context, t.globalId, spool);
+                  },
+                );
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.edit_rounded),
               title: const Text('Editar tipo y color'),
@@ -166,6 +201,48 @@ class AmsTab extends StatelessWidget {
               },
             ),
             const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _assignSpool(BuildContext context, int tray, Spool? current) {
+    if (current != null) {
+      editSpool(context, spool: current);
+      return;
+    }
+    final free = context.read<AppState>().spools.where((s) => s.tray == null).toList();
+    if (free.isEmpty) {
+      editSpool(context, tray: tray);
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      builder: (c) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final sp in free)
+              ListTile(
+                leading: CircleAvatar(radius: 14, backgroundColor: parseHex(sp.color) ?? Colors.grey),
+                title: Text(sp.label.isEmpty ? sp.material : sp.label),
+                subtitle: Text('${sp.remainingG.round()} g restantes'),
+                onTap: () async {
+                  Navigator.pop(c);
+                  final s = context.read<AppState>();
+                  await s.api?.updateSpool(sp.id, {'tray': tray, 'printer_id': printer.id});
+                  await s.refreshSpools();
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.add_rounded),
+              title: const Text('Nuevo carrete'),
+              onTap: () {
+                Navigator.pop(c);
+                editSpool(context, tray: tray);
+              },
+            ),
           ],
         ),
       ),
@@ -355,6 +432,29 @@ class _SpoolDot extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _InventoryHint extends StatelessWidget {
+  final String printerId;
+  final int tray;
+  final bool alignStart;
+  const _InventoryHint({required this.printerId, required this.tray, this.alignStart = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final spool = context.watch<AppState>().spoolInTray(printerId, tray);
+    if (spool == null) return const SizedBox.shrink();
+    final low = spool.remainingG < 100;
+    return Text(
+      '${spool.remainingG.round()} g',
+      textAlign: alignStart ? TextAlign.start : TextAlign.center,
+      style: TextStyle(
+        fontSize: 11.5,
+        fontWeight: FontWeight.w700,
+        color: low ? AppColors.warning : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

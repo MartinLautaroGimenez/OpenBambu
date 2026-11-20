@@ -200,6 +200,7 @@ class _PrintScreenState extends State<PrintScreen> {
                       ),
                       printer: printer,
                       onChanged: () => setState(() {}),
+                      copies: _copies,
                     ),
                 ],
               ),
@@ -328,11 +329,13 @@ class _FilamentRow extends StatelessWidget {
   final TrayAssignment assignment;
   final Printer? printer;
   final VoidCallback onChanged;
+  final int copies;
   const _FilamentRow({
     required this.filament,
     required this.assignment,
     required this.printer,
     required this.onChanged,
+    this.copies = 1,
   });
 
   String _family(String? t) => (t ?? '').toUpperCase().split('-').first.split(' ').first;
@@ -343,6 +346,10 @@ class _FilamentRow extends StatelessWidget {
     final options = _trayOptions(printer);
     final sel = options.where((o) => o.id == assignment.tray).firstOrNull;
     final mismatch = sel != null && sel.type != null && _family(sel.type) != _family(filament.type);
+    final spool = printer == null || assignment.tray == null
+        ? null
+        : context.watch<AppState>().spoolInTray(printer!.id, assignment.tray!);
+    final need = filament.usedG == null ? null : filament.usedG! * copies;
     final flexible = _family(filament.type) == 'TPU';
     final tpuInAms = flexible && sel != null && sel.id != 254;
 
@@ -410,6 +417,20 @@ class _FilamentRow extends StatelessWidget {
               child: Text(
                 '⚠ El AMS lite no admite TPU: usá el carrete externo',
                 style: TextStyle(color: AppColors.danger),
+              ),
+            ),
+          if (spool != null && need != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 42),
+              child: Text(
+                need > spool.remainingG
+                    ? '⚠ No alcanza: necesita ${need.round()} g y al carrete le quedan ${spool.remainingG.round()} g'
+                    : 'Carrete ${spool.label}: quedan ${spool.remainingG.round()} g'
+                          '${spool.price > 0 ? ' · costo aprox. \$ ${(need * spool.pricePerGram).round()}' : ''}',
+                style: TextStyle(
+                  color: need > spool.remainingG ? AppColors.danger : Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12.5,
+                ),
               ),
             ),
         ],

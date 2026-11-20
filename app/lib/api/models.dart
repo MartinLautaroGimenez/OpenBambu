@@ -491,3 +491,132 @@ class CatalogDetail {
       downloadable = j['downloadable'] != false,
       note = j['note'];
 }
+
+// ---- Historial, estadísticas e inventario ------------------------------------
+
+class PrintFilament {
+  final int? tray;
+  final String? type;
+  final String? color;
+  final double? usedG;
+  final double? consumedG;
+  final double? cost;
+
+  PrintFilament.fromJson(Map<String, dynamic> j)
+    : tray = j['tray'] == null ? null : _i(j['tray']),
+      type = j['type'],
+      color = j['color'],
+      usedG = j['used_g'] == null ? null : _d(j['used_g']),
+      consumedG = j['consumed_g'] == null ? null : _d(j['consumed_g']),
+      cost = j['cost'] == null ? null : _d(j['cost']);
+}
+
+class PrintRecord {
+  final int id;
+  final String printerId;
+  final String name;
+  final String? libraryId;
+  final int plate;
+  final String status;
+  final DateTime started;
+  final DateTime? finished;
+  final int progress;
+  final double? weightG;
+  final double? cost;
+  final List<PrintFilament> filaments;
+  final String? error;
+  final bool snapshot;
+  final bool reprintable;
+
+  PrintRecord.fromJson(Map<String, dynamic> j)
+    : id = _i(j['id']),
+      printerId = j['printer_id'] ?? '',
+      name = j['name'] ?? '',
+      libraryId = j['library_id'],
+      plate = _i(j['plate'], 1),
+      status = j['status'] ?? 'printing',
+      started = DateTime.fromMillisecondsSinceEpoch((_d(j['started']) * 1000).round()),
+      finished = j['finished'] == null ? null : DateTime.fromMillisecondsSinceEpoch((_d(j['finished']) * 1000).round()),
+      progress = _i(j['progress']),
+      weightG = j['weight_g'] == null ? null : _d(j['weight_g']),
+      cost = j['cost'] == null ? null : _d(j['cost']),
+      filaments = [for (final f in (j['filaments'] as List? ?? [])) PrintFilament.fromJson(f)],
+      error = j['error'],
+      snapshot = j['snapshot'] == true,
+      reprintable = j['reprintable'] == true;
+
+  Duration get duration => (finished ?? DateTime.now()).difference(started);
+
+  String get statusLabel => switch (status) {
+    'done' => 'Terminada',
+    'failed' => 'Falló',
+    'cancelled' => 'Cancelada',
+    _ => 'Imprimiendo',
+  };
+}
+
+class MonthStat {
+  final String month;
+  final int prints;
+  final double grams;
+  final double hours;
+
+  MonthStat.fromJson(Map<String, dynamic> j)
+    : month = j['month'] ?? '',
+      prints = _i(j['prints']),
+      grams = _d(j['grams']),
+      hours = _d(j['hours']);
+}
+
+class PrintStats {
+  final int total, done, failed, cancelled;
+  final int? successRate;
+  final double hours, grams, cost;
+  final List<MonthStat> months;
+  final Map<String, double> materials;
+
+  PrintStats.fromJson(Map<String, dynamic> j)
+    : total = _i(j['total']),
+      done = _i(j['done']),
+      failed = _i(j['failed']),
+      cancelled = _i(j['cancelled']),
+      successRate = j['success_rate'] == null ? null : _i(j['success_rate']),
+      hours = _d(j['hours']),
+      grams = _d(j['grams']),
+      cost = _d(j['cost']),
+      months = [for (final m in (j['months'] as List? ?? [])) MonthStat.fromJson(m)],
+      materials = {for (final e in ((j['materials'] as Map?) ?? {}).entries) '${e.key}': _d(e.value)};
+}
+
+class Spool {
+  final int id;
+  final String brand;
+  final String material;
+  final String? color;
+  final String colorName;
+  final double weightG;
+  final double remainingG;
+  final double price;
+  final String? printerId;
+  final int? tray;
+  final bool archived;
+  final String notes;
+
+  Spool.fromJson(Map<String, dynamic> j)
+    : id = _i(j['id']),
+      brand = j['brand'] ?? '',
+      material = j['material'] ?? 'PLA',
+      color = j['color'],
+      colorName = j['color_name'] ?? '',
+      weightG = _d(j['weight_g']),
+      remainingG = _d(j['remaining_g']),
+      price = _d(j['price']),
+      printerId = j['printer_id'],
+      tray = j['tray'] == null ? null : _i(j['tray']),
+      archived = j['archived'] == true || j['archived'] == 1,
+      notes = j['notes'] ?? '';
+
+  String get label => [brand, material, colorName].where((s) => s.isNotEmpty).join(' ');
+  double get fraction => weightG > 0 ? (remainingG / weightG).clamp(0, 1) : 0;
+  double get pricePerGram => weightG > 0 ? price / weightG : 0;
+}

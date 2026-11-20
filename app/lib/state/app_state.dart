@@ -27,6 +27,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   final Map<String, Printer> printers = {};
   final List<PrinterEvent> events = [];
   final Map<String, QueueState> queues = {};
+  List<Spool> spools = [];
+
+  /// Se incrementa cuando cambia el historial (para recargar pantallas).
+  int historyVersion = 0;
   final Map<String, bool> _queueLoading = {};
   String? selectedId;
 
@@ -108,6 +112,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       for (final id in printers.keys) {
         refreshQueue(id);
       }
+      refreshSpools();
     } catch (e) {
       connError = e is ApiException ? e.message : 'No se pudo conectar al servidor';
       conn = ConnState.disconnected;
@@ -127,6 +132,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         }
       case 'queue':
         refreshQueue(msg['printer_id']);
+      case 'history':
+        historyVersion++;
+        refreshSpools();
       case 'event':
         final e = PrinterEvent.fromJson(msg['data']);
         events.insert(0, e);
@@ -200,6 +208,18 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       _queueLoading[printerId] = false;
     }
   }
+
+  Future<void> refreshSpools() async {
+    final a = api;
+    if (a == null) return;
+    try {
+      spools = await a.spools();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Spool? spoolInTray(String printerId, int tray) =>
+      spools.where((s) => s.printerId == printerId && s.tray == tray).firstOrNull;
 
   void setQueue(String printerId, QueueState q) {
     queues[printerId] = q;
