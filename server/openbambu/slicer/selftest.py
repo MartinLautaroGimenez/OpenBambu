@@ -45,10 +45,14 @@ async def main(model: str = "A1") -> int:
             for e in entries:
                 if e.name.upper().startswith("BBL"):
                     if e.is_dir():
-                        print("   ", e.name, "->", [x.name for x in sorted(e.iterdir())[:20]])
+                        names = [x.name + ("/" if x.is_dir() else "") for x in sorted(e.iterdir())]
+                        print("   ", e.name, "->", [n for n in names if not n.endswith((".png", ".stl", ".svg"))])
                     elif zipfile.is_zipfile(e):
                         with zipfile.ZipFile(e) as z:
                             print("   ", e.name, "(zip) ->", z.namelist()[:15])
+                    else:
+                        head = e.read_bytes()[:64]
+                        print("   ", e.name, f"({e.stat().st_size} bytes) cabecera:", head.hex(" "), head)
         return 1
     machine = MACHINE_FOR_MODEL[model]
     procs = lib.processes(machine)
