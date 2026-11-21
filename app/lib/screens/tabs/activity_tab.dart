@@ -53,7 +53,7 @@ class _ActivityTabState extends State<ActivityTab> {
             index: _view,
             children: [
               _HistoryList(printer: widget.printer),
-              _StatsView(printer: widget.printer),
+              StatsView(printerId: widget.printer.id),
               EventsTab(printer: widget.printer),
             ],
           ),
@@ -120,7 +120,7 @@ class _HistoryListState extends State<_HistoryList> {
   }
 }
 
-Color _statusColor(String s) => switch (s) {
+Color printStatusColor(String s) => switch (s) {
   'done' => AppColors.accent,
   'failed' => AppColors.danger,
   'cancelled' => AppColors.warning,
@@ -136,12 +136,12 @@ class _PrintCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final api = context.read<AppState>().api;
-    final c = _statusColor(rec.status);
+    final c = printStatusColor(rec.status);
     final minutes = rec.duration.inMinutes;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => _openDetail(context),
+        onTap: () => showPrintDetail(context, rec, onChanged),
         child: Row(
           children: [
             Container(
@@ -214,8 +214,11 @@ class _PrintCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  void _openDetail(BuildContext context) {
+/// Detalle de una impresión del historial: foto, timelapse, filamentos, reimprimir.
+void showPrintDetail(BuildContext context, PrintRecord rec, VoidCallback onChanged) {
+  {
     final api = context.read<AppState>().api;
     showModalBottomSheet(
       context: context,
@@ -257,7 +260,7 @@ class _PrintCard extends StatelessWidget {
               '${rec.statusLabel} · ${formatClock(rec.started)}'
               '${rec.status != 'done' && rec.status != 'printing' ? ' · al ${rec.progress}%' : ''}'
               '${rec.error != null ? ' · error ${rec.error}' : ''}',
-              style: TextStyle(color: _statusColor(rec.status), fontWeight: FontWeight.w600),
+              style: TextStyle(color: printStatusColor(rec.status), fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
             Row(
@@ -334,15 +337,17 @@ class _PrintCard extends StatelessWidget {
 
 // ---- estadísticas ---------------------------------------------------------------
 
-class _StatsView extends StatefulWidget {
-  final Printer printer;
-  const _StatsView({required this.printer});
+/// Estadísticas de una impresora (o de todas si [printerId] es null).
+class StatsView extends StatefulWidget {
+  final String? printerId;
+  final int columns;
+  const StatsView({super.key, this.printerId, this.columns = 2});
 
   @override
-  State<_StatsView> createState() => _StatsViewState();
+  State<StatsView> createState() => _StatsViewState();
 }
 
-class _StatsViewState extends State<_StatsView> {
+class _StatsViewState extends State<StatsView> {
   PrintStats? _s;
   int _version = -1;
 
@@ -350,7 +355,7 @@ class _StatsViewState extends State<_StatsView> {
     final api = context.read<AppState>().api;
     if (api == null) return;
     try {
-      final s = await api.stats(printerId: widget.printer.id);
+      final s = await api.stats(printerId: widget.printerId);
       if (mounted) setState(() => _s = s);
     } catch (_) {}
   }
@@ -390,12 +395,12 @@ class _StatsViewState extends State<_StatsView> {
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           GridView.count(
-            crossAxisCount: 2,
+            crossAxisCount: widget.columns,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            childAspectRatio: 1.6,
+            childAspectRatio: widget.columns > 2 ? 3.2 : 1.6,
             children: [
               tile(Icons.print_rounded, 'Impresiones', '${s.total}', AppColors.info),
               tile(

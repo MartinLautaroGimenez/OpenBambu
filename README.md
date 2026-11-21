@@ -9,7 +9,7 @@ Software libre para controlar impresoras **Bambu Lab** (pensado para la **A1**, 
 | | |
 |---|---|
 | 🔎 **Explorar (pantalla de inicio)** | Catálogo de modelos de **MakerWorld** y **Printables** (y Thingiverse con token): populares, buscador, fotos, perfiles de impresión; se descargan a la biblioteca y se laminan o imprimen con un toque |
-| 🖥️ **Dashboard web** | Entrás desde la compu a `http://IP-del-servidor:8787`: panel con cámara, estado, controles y AMS a la vez, más catálogo, biblioteca y actividad |
+| 🖥️ **Dashboard web** | Entrás desde la compu a `http://IP-del-servidor:8787`: barra lateral con Impresoras (grilla de tarjetas con cámara, progreso, temperaturas, AMS y controles rápidos), Cola, Archivo con fotos, Estadísticas, Biblioteca, Explorar, Filamento y Eventos. El progreso aparece en el título de la pestaña |
 | 📷 **Cámara en vivo** | Stream de la cámara de la A1, pantalla completa con zoom |
 | 📊 **Estado** | Progreso, capa, tiempo restante, hora de fin, etapa actual (nivelando, calentando…) |
 | ⏯ **Control de impresión** | Pausar, reanudar, detener, velocidad (Silencioso / Estándar / Sport / Ludicrous) |

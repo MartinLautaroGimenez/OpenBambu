@@ -37,7 +37,9 @@ El servidor arranca solo cada vez que se enciende la Pi.
 ## Dashboard web
 
 Desde cualquier navegador de tu red: `http://IP-de-la-pi:8787` (pide el mismo token que la app).
-En pantallas grandes muestra un panel con cámara, estado, controles y AMS a la vez.
+En pantallas grandes tiene barra lateral: **Impresoras** (una tarjeta por impresora con cámara, progreso,
+temperaturas, AMS y botones; tocala para el panel completo), **Cola**, **Archivo** con fotos, **Estadísticas**,
+**Biblioteca**, **Explorar**, **Filamento** y **Eventos**.
 
 ## Agregar la impresora (desde la app)
 

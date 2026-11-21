@@ -164,7 +164,7 @@ class _PrintTabState extends State<PrintTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
           children: [
-            _QueueSection(printer: widget.printer, queue: q),
+            QueueSection(printer: widget.printer, queue: q),
             const SectionTitle('Archivos'),
             SegmentedButton<int>(
               showSelectedIcon: false,
@@ -422,10 +422,11 @@ class _LibraryCard extends StatelessWidget {
   }
 }
 
-class _QueueSection extends StatelessWidget {
+/// Cola de una impresora: cama libre, trabajos pendientes y recientes.
+class QueueSection extends StatelessWidget {
   final Printer printer;
   final QueueState queue;
-  const _QueueSection({required this.printer, required this.queue});
+  const QueueSection({super.key, required this.printer, required this.queue});
 
   @override
   Widget build(BuildContext context) {
