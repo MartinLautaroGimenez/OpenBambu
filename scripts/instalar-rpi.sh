@@ -78,7 +78,8 @@ fi
 
 # 4. Levantar el servidor
 verde "-> Construyendo e iniciando el servidor (la primera vez tarda ~5 min)…"
-sudo docker compose up -d --build
+sudo docker compose build --build-arg WEB_BUST="$(date +%s)"
+sudo docker compose up -d
 
 echo -n "Esperando al servidor"
 for _ in $(seq 1 60); do
@@ -97,6 +98,7 @@ verde "=============================================="
 echo  " En la app ingresá estos datos y después agregá tu impresora"
 echo  " (Impresora → Agregar impresora: aparece sola si está en la misma red):"
 echo  "   Servidor: $ip_pi:8787"
+echo  "   Dashboard web: http://$ip_pi:8787 (desde cualquier navegador)"
 echo  "   Token:    ${token:-(ver: sudo docker compose -f $DIR/docker-compose.yml logs | grep -i token)}"
 echo
 echo  " Logs:        sudo docker compose -f $DIR/docker-compose.yml logs -f"

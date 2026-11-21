@@ -25,6 +25,7 @@ class PrinterScreen extends StatefulWidget {
 
 class _PrinterScreenState extends State<PrinterScreen> {
   int _tab = 0;
+  bool _wideInit = false;
   StreamSubscription? _events;
 
   @override
@@ -64,6 +65,12 @@ class _PrinterScreenState extends State<PrinterScreen> {
     final s = context.watch<AppState>();
     final p = s.selected;
     final alerts = p?.status.hms.isNotEmpty ?? false;
+    // Pantallas grandes (navegador en la compu, tablet): panel de control
+    final wide = MediaQuery.sizeOf(context).width >= 1000;
+    if (wide && !_wideInit) {
+      _wideInit = true;
+      _tab = 2;
+    }
     final settings = IconButton(
       tooltip: 'Ajustes',
       icon: const Icon(Icons.settings_rounded),
@@ -78,6 +85,7 @@ class _PrinterScreenState extends State<PrinterScreen> {
           body: _Empty(state: s),
         );
       }
+      if (tab == 2 && wide) return _DashboardPanel(printer: p, multiple: s.printers.length > 1, settings: settings);
       return switch (tab) {
         1 => Scaffold(
           appBar: AppBar(titleSpacing: 20, title: const Text('Biblioteca'), actions: [settings]),
@@ -114,6 +122,67 @@ class _PrinterScreenState extends State<PrinterScreen> {
           body: ActivityTab(printer: p),
         ),
       };
+    }
+
+    if (wide) {
+      const order = [2, 0, 1, 3]; // Panel, Explorar, Biblioteca, Actividad
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              extended: MediaQuery.sizeOf(context).width >= 1300,
+              selectedIndex: order.indexOf(_tab),
+              onDestinationSelected: (i) => _go(order[i]),
+              leading: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Icon(Icons.print_rounded, color: AppColors.accent, size: 32),
+              ),
+              trailing: Expanded(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(padding: const EdgeInsets.only(bottom: 16), child: settings),
+                ),
+              ),
+              destinations: [
+                NavigationRailDestination(
+                  icon: Badge(isLabelVisible: alerts, child: const Icon(Icons.space_dashboard_outlined)),
+                  selectedIcon: const Icon(Icons.space_dashboard_rounded),
+                  label: const Text('Panel'),
+                ),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.explore_outlined),
+                  selectedIcon: Icon(Icons.explore_rounded),
+                  label: Text('Explorar'),
+                ),
+                NavigationRailDestination(
+                  icon: Badge(
+                    isLabelVisible: p != null && s.queueOf(p.id).waitingBedClear,
+                    child: const Icon(Icons.folder_outlined),
+                  ),
+                  selectedIcon: const Icon(Icons.folder_rounded),
+                  label: const Text('Biblioteca'),
+                ),
+                const NavigationRailDestination(
+                  icon: Icon(Icons.timeline_outlined),
+                  selectedIcon: Icon(Icons.timeline_rounded),
+                  label: Text('Actividad'),
+                ),
+              ],
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: Column(
+                children: [
+                  const ConnectionBanner(),
+                  Expanded(
+                    child: IndexedStack(index: _tab, children: [for (var i = 0; i < 4; i++) section(i)]),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return Scaffold(
@@ -251,6 +320,55 @@ class _Empty extends StatelessWidget {
               OutlinedButton(onPressed: state.retryNow, child: const Text('Reintentar')),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Panel de escritorio: Estado, Control y AMS a la vista al mismo tiempo.
+class _DashboardPanel extends StatelessWidget {
+  final Printer printer;
+  final bool multiple;
+  final Widget settings;
+  const _DashboardPanel({required this.printer, required this.multiple, required this.settings});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    Widget column(String title, Widget child, {int flex = 1}) => Expanded(
+      flex: flex,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: Text(
+              title.toUpperCase(),
+              style: t.textTheme.labelMedium?.copyWith(
+                letterSpacing: 1.2,
+                fontWeight: FontWeight.w800,
+                color: t.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          Expanded(child: child),
+        ],
+      ),
+    );
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 20,
+        title: _PrinterTitle(printer: printer, multiple: multiple),
+      ),
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          column('Estado', StatusTab(printer: printer, onOpenControl: () {}), flex: 5),
+          const VerticalDivider(width: 1),
+          column('Control', ControlTab(printer: printer), flex: 4),
+          const VerticalDivider(width: 1),
+          column('AMS y filamento', AmsTab(printer: printer), flex: 4),
+        ],
       ),
     );
   }

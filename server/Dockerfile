@@ -49,6 +49,17 @@ COPY openbambu ./openbambu
 RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir . && mkdir -p /data
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Dashboard web (la app compilada para navegador, publicada por GitHub Actions).
+# WEB_BUST cambia en cada actualización para bajar siempre la última versión.
+ARG WEB_URL=https://github.com/MartinLautaroGimenez/OpenBambu/releases/download/apk-ccr-4386d231-oij6be/OpenBambu-web.zip
+ARG WEB_BUST=0
+RUN mkdir -p /opt/openbambu-web && \
+    (curl -fsSL "$WEB_URL" -o /tmp/web.zip \
+     && python3 -m zipfile -e /tmp/web.zip /opt/openbambu-web \
+     && rm /tmp/web.zip \
+     && echo "Dashboard web instalado ($WEB_BUST)") \
+    || echo "Aviso: no se pudo descargar el dashboard web; la API funciona igual"
+
 VOLUME /data
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s CMD python3 -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8787/api/health')"

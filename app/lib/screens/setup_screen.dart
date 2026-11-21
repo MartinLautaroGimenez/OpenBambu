@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -14,7 +15,12 @@ class SetupScreen extends StatefulWidget {
 }
 
 class _SetupScreenState extends State<SetupScreen> {
-  late final _url = TextEditingController(text: context.read<AppState>().store.serverUrl);
+  // En el dashboard web la app la sirve el mismo servidor: usar esa dirección
+  late final _url = TextEditingController(
+    text: context.read<AppState>().store.serverUrl.isNotEmpty
+        ? context.read<AppState>().store.serverUrl
+        : (kIsWeb ? Uri.base.origin : ''),
+  );
   late final _token = TextEditingController(text: context.read<AppState>().store.token);
   bool _busy = false;
   bool _showToken = false;

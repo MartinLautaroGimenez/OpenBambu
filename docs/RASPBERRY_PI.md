@@ -34,6 +34,11 @@ El instalador:
 
 El servidor arranca solo cada vez que se enciende la Pi.
 
+## Dashboard web
+
+Desde cualquier navegador de tu red: `http://IP-de-la-pi:8787` (pide el mismo token que la app).
+En pantallas grandes muestra un panel con cámara, estado, controles y AMS a la vez.
+
 ## Agregar la impresora (desde la app)
 
 En la app: **Impresora → Agregar impresora** (o Ajustes → Impresoras). Las Bambu Lab

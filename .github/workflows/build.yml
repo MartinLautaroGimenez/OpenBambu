@@ -70,10 +70,17 @@ jobs:
       - run: flutter build apk --release
       - name: Renombrar APK
         run: cp build/app/outputs/flutter-apk/app-release.apk OpenBambu.apk
+      # Dashboard web: la misma app compilada para navegador (la sirve el servidor)
+      - name: Compilar dashboard web
+        run: |
+          flutter build web --release --base-href /
+          (cd build/web && zip -qr ../../OpenBambu-web.zip .)
       - uses: actions/upload-artifact@v4
         with:
           name: OpenBambu-apk
-          path: app/OpenBambu.apk
+          path: |
+            app/OpenBambu.apk
+            app/OpenBambu-web.zip
       # Publica el APK como pre-release para descargarlo directo desde el celular
       - name: Publicar pre-release
         env:
@@ -82,7 +89,7 @@ jobs:
         run: |
           TAG="apk-${BRANCH//\//-}"
           gh release delete "$TAG" --cleanup-tag -y || true
-          gh release create "$TAG" OpenBambu.apk \
+          gh release create "$TAG" OpenBambu.apk OpenBambu-web.zip \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "OpenBambu APK ($BRANCH)" \

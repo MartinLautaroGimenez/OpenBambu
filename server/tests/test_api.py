@@ -82,3 +82,25 @@ def test_websocket(client):
         ws.send_text("ping")
         types = {ws.receive_json()["type"] for _ in range(3)}
         assert "pong" in types or "status" in types
+
+
+def test_serves_web_dashboard(tmp_path, monkeypatch):
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "index.html").write_text("<html>OpenBambu web</html>")
+    (web / "main.dart.js").write_text("console.log(1)")
+    monkeypatch.setenv("OB_WEB_DIR", str(web))
+    settings = Settings(api_token=TOKEN, data_dir=str(tmp_path / "d"), printers=[])
+    with TestClient(create_app(settings)) as c:
+        r = c.get("/")
+        assert r.status_code == 200 and "OpenBambu web" in r.text and r.headers["cache-control"] == "no-cache"
+        assert c.get("/main.dart.js").status_code == 200
+        assert c.get("/api/health").json()["name"] == "OpenBambu"  # la API sigue funcionando
+        assert c.get("/api/printers").status_code == 401
+
+
+def test_root_without_web_redirects_to_docs(tmp_path, monkeypatch):
+    monkeypatch.setenv("OB_WEB_DIR", str(tmp_path / "nada"))
+    settings = Settings(api_token=TOKEN, data_dir=str(tmp_path / "d"), printers=[])
+    with TestClient(create_app(settings)) as c:
+        assert c.get("/", follow_redirects=False).headers["location"] == "/docs"

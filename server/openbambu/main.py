@@ -43,7 +43,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(history_router)
     app.include_router(power_router)
     app.include_router(admin_router)
+    _mount_web(app)
     return app
+
+
+def _mount_web(app: FastAPI) -> None:
+    """Dashboard web: la app Flutter compilada para web, servida en la raíz."""
+    from pathlib import Path
+
+    from fastapi.responses import RedirectResponse
+    from fastapi.staticfiles import StaticFiles
+
+    web = Path(os.getenv("OB_WEB_DIR", "/opt/openbambu-web"))
+    if not (web / "index.html").exists():
+        @app.get("/", include_in_schema=False)
+        async def no_web():
+            return RedirectResponse("/docs")
+        return
+
+    class WebFiles(StaticFiles):
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            # index.html y el service worker siempre frescos; el resto se cachea
+            if path in ("", ".", "index.html", "flutter_service_worker.js", "version.json"):
+                resp.headers["Cache-Control"] = "no-cache"
+            return resp
+
+    app.mount("/", WebFiles(directory=web, html=True), name="web")
 
 
 def run() -> None:
