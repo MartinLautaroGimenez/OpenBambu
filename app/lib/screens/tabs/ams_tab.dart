@@ -7,6 +7,7 @@ import '../../state/app_state.dart';
 import '../inventory_screen.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/spool_qr.dart';
 
 const filamentTypes = ['PLA', 'PETG', 'ABS', 'ASA', 'TPU', 'PLA-CF', 'PA', 'PC', 'PVA'];
 const swatches = [
@@ -190,6 +191,15 @@ class AmsTab extends StatelessWidget {
                     _assignSpool(context, t.globalId, spool);
                   },
                 );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_scanner_rounded),
+              title: const Text('Escanear etiqueta del carrete'),
+              subtitle: const Text('Asigna el carrete a esta bandeja'),
+              onTap: () {
+                Navigator.pop(c);
+                scanSpoolIntoTray(context, printer.id, t.globalId, name);
               },
             ),
             ListTile(

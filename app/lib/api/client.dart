@@ -223,14 +223,64 @@ class ApiClient {
   ];
 
   // ---- historial e inventario -----------------------------------------
-  Future<List<PrintRecord>> history({String? printerId, int offset = 0}) async => [
-    for (final x in (await _req(
-      'GET',
-      '/history',
-      query: {'printer_id': ?printerId, 'offset': '$offset', 'limit': '30'},
-    )) as List)
-      PrintRecord.fromJson(x),
+  Future<List<PrintRecord>> history({String? printerId, int offset = 0, int? projectId, bool unrated = false}) async =>
+      [
+        for (final x in (await _req(
+          'GET',
+          '/history',
+          query: {
+            'printer_id': ?printerId,
+            'offset': '$offset',
+            'limit': '30',
+            if (projectId != null) 'project_id': '$projectId',
+            if (unrated) 'unrated': 'true',
+          },
+        )) as List)
+          PrintRecord.fromJson(x),
+      ];
+
+  Future<PrintRecord> ratePrint(int id, String? rating, {String? reason}) async =>
+      PrintRecord.fromJson(await _req('POST', '/history/$id/rating', body: {'rating': rating, 'reason': reason}));
+
+  Future<PrintRecord> setPrintProject(int id, int? projectId) async =>
+      PrintRecord.fromJson(await _req('PATCH', '/history/$id', body: {'project_id': projectId}));
+
+  // ---- proyectos -------------------------------------------------------
+  Future<List<Project>> projects({bool archived = false}) async => [
+    for (final x in (await _req('GET', '/projects', query: {if (archived) 'archived': 'true'})) as List)
+      Project.fromJson(x),
   ];
+
+  Future<Project> saveProject(Map<String, dynamic> data, {int? id}) async => Project.fromJson(
+    await _req(id == null ? 'POST' : 'PATCH', id == null ? '/projects' : '/projects/$id', body: data),
+  );
+
+  Future<void> deleteProject(int id) => _req('DELETE', '/projects/$id');
+
+  // ---- mantenimiento -----------------------------------------------------
+  Future<List<MaintenanceOverview>> maintenanceAll() async => [
+    for (final x in (await _req('GET', '/maintenance')) as List) MaintenanceOverview.fromJson(x),
+  ];
+
+  Future<MaintenanceOverview> maintenance(String printerId) async =>
+      MaintenanceOverview.fromJson(await _req('GET', '/printers/$printerId/maintenance'));
+
+  Future<MaintenanceOverview> saveMaintenanceTask(String printerId, Map<String, dynamic> data, {int? id}) async =>
+      MaintenanceOverview.fromJson(
+        await _req(
+          id == null ? 'POST' : 'PATCH',
+          id == null ? '/printers/$printerId/maintenance' : '/printers/$printerId/maintenance/$id',
+          body: data,
+        ),
+      );
+
+  Future<MaintenanceOverview> deleteMaintenanceTask(String printerId, int id) async =>
+      MaintenanceOverview.fromJson(await _req('DELETE', '/printers/$printerId/maintenance/$id'));
+
+  Future<MaintenanceOverview> maintenanceDone(String printerId, int id, {String notes = ''}) async =>
+      MaintenanceOverview.fromJson(
+        await _req('POST', '/printers/$printerId/maintenance/$id/done', body: {'notes': notes}),
+      );
 
   Future<PrintStats> stats({String? printerId}) async =>
       PrintStats.fromJson(await _req('GET', '/history/stats', query: {'printer_id': ?printerId}));
@@ -254,6 +304,11 @@ class ApiClient {
   Future<Spool> updateSpool(int id, Map<String, dynamic> data) async =>
       Spool.fromJson(await _req('PATCH', '/spools/$id', body: data));
 
+  String spoolLabel(int id) => uri('/spools/$id/label.png', {'token': token}).toString();
+
+  Future<Spool> spoolByCode(String code) async =>
+      Spool.fromJson(await _req('GET', '/spools/by-code', query: {'code': code}));
+
   Future<void> deleteSpool(int id) => _req('DELETE', '/spools/$id');
 
   // ---- energía (Home Assistant) --------------------------------------
@@ -262,8 +317,8 @@ class ApiClient {
   Future<Map<String, dynamic>> savePowerConfig(Map<String, dynamic> data) async =>
       (await _req('PUT', '/power/config', body: data)) as Map<String, dynamic>;
 
-  Future<List<Map<String, dynamic>>> powerEntities() async => [
-    for (final x in (await _req('GET', '/power/entities')) as List) x as Map<String, dynamic>,
+  Future<List<Map<String, dynamic>>> powerEntities({String kind = 'switch'}) async => [
+    for (final x in (await _req('GET', '/power/entities', query: {'kind': kind})) as List) x as Map<String, dynamic>,
   ];
 
   Future<Map<String, dynamic>> powerStatus(String printerId) async =>
@@ -326,6 +381,7 @@ class ApiClient {
     bool startNow = false,
     bool bedClear = false,
     DateTime? startAfter,
+    int? projectId,
   }) async => QueueState.fromJson(
     await _req(
       'POST',
@@ -339,6 +395,7 @@ class ApiClient {
         'start_now': startNow,
         'bed_clear': bedClear,
         if (startAfter != null) 'start_after': startAfter.millisecondsSinceEpoch / 1000,
+        'project_id': ?projectId,
       },
     ),
   );

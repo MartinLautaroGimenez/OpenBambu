@@ -4,6 +4,7 @@ import '../../api/models.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/power_card.dart';
+import '../maintenance_screen.dart';
 
 class ControlTab extends StatelessWidget {
   final Printer printer;
@@ -19,6 +20,21 @@ class ControlTab extends StatelessWidget {
       children: [
         const SectionTitle('Energía'),
         PowerCard(printer: printer),
+        const SectionTitle('Mantenimiento'),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.build_circle_outlined),
+            title: const Text('Tareas de mantenimiento'),
+            subtitle: const Text('Lubricar, limpiar y revisar según las horas de uso'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MaintenanceScreen(printerId: printer.id, printerName: printer.name),
+              ),
+            ),
+          ),
+        ),
         const SectionTitle('Temperaturas'),
         _TempControl(
           label: 'Boquilla',

@@ -539,6 +539,11 @@ class PrintRecord {
   final bool snapshot;
   final bool reprintable;
   final bool timelapse;
+  final double? energyKwh;
+  final double? energyCost;
+  final String? rating; // good | bad
+  final String? ratingReason;
+  final int? projectId;
 
   PrintRecord.fromJson(Map<String, dynamic> j)
     : id = _i(j['id']),
@@ -556,7 +561,15 @@ class PrintRecord {
       error = j['error'],
       snapshot = j['snapshot'] == true,
       reprintable = j['reprintable'] == true,
-      timelapse = j['timelapse'] == true;
+      timelapse = j['timelapse'] == true,
+      energyKwh = j['energy_kwh'] == null ? null : _d(j['energy_kwh']),
+      energyCost = j['energy_cost'] == null ? null : _d(j['energy_cost']),
+      rating = j['rating'],
+      ratingReason = j['rating_reason'],
+      projectId = j['project_id'] == null ? null : _i(j['project_id']);
+
+  bool get needsRating => status == 'done' && rating == null;
+  double? get totalCost => cost == null && energyCost == null ? null : (cost ?? 0) + (energyCost ?? 0);
 
   Duration get duration => (finished ?? DateTime.now()).difference(started);
 
@@ -587,6 +600,10 @@ class PrintStats {
   final double hours, grams, cost;
   final List<MonthStat> months;
   final Map<String, double> materials;
+  final int ratedGood, ratedBad, unrated, recentTotal;
+  final int? recentSuccessRate;
+  final double energyKwh, energyCost;
+  final List<(String, int)> issues;
 
   PrintStats.fromJson(Map<String, dynamic> j)
     : total = _i(j['total']),
@@ -598,7 +615,15 @@ class PrintStats {
       grams = _d(j['grams']),
       cost = _d(j['cost']),
       months = [for (final m in (j['months'] as List? ?? [])) MonthStat.fromJson(m)],
-      materials = {for (final e in ((j['materials'] as Map?) ?? {}).entries) '${e.key}': _d(e.value)};
+      materials = {for (final e in ((j['materials'] as Map?) ?? {}).entries) '${e.key}': _d(e.value)},
+      ratedGood = _i(j['rated_good']),
+      ratedBad = _i(j['rated_bad']),
+      unrated = _i(j['unrated']),
+      recentTotal = _i(j['recent_total']),
+      recentSuccessRate = j['recent_success_rate'] == null ? null : _i(j['recent_success_rate']),
+      energyKwh = _d(j['energy_kwh']),
+      energyCost = _d(j['energy_cost']),
+      issues = [for (final x in (j['issues'] as List? ?? [])) ('${x['reason']}', _i(x['count']))];
 }
 
 class Spool {
@@ -674,4 +699,113 @@ class DiscoveredPrinter {
       model = j['model'],
       connection = j['connection'],
       added = j['added'] == true;
+}
+
+// ---- Calificación, proyectos y mantenimiento ------------------------------------
+
+/// Motivos de rechazo (los mismos que el servidor).
+const rejectReasons = {
+  'adhesion': 'Se despegó de la cama',
+  'spaghetti': 'Spaghetti / se soltó',
+  'layer_shift': 'Capas corridas',
+  'under_extrusion': 'Falta de extrusión',
+  'stringing': 'Hilos / stringing',
+  'warping': 'Warping',
+  'dimensions': 'Medidas incorrectas',
+  'surface': 'Mala terminación',
+  'other': 'Otro',
+};
+
+class Project {
+  final int id;
+  final String name;
+  final String? color;
+  final String notes;
+  final int? target;
+  final bool archived;
+  final int prints, ok, failed, printing, queued;
+  final double hours, grams, cost, energyKwh, energyCost;
+  final int? progress;
+  final DateTime? lastPrint;
+  final int? thumbnailPrint;
+
+  Project.fromJson(Map<String, dynamic> j)
+    : id = _i(j['id']),
+      name = j['name'] ?? '',
+      color = j['color'],
+      notes = j['notes'] ?? '',
+      target = j['target'] == null ? null : _i(j['target']),
+      archived = j['archived'] == true,
+      prints = _i(j['prints']),
+      ok = _i(j['ok']),
+      failed = _i(j['failed']),
+      printing = _i(j['printing']),
+      queued = _i(j['queued']),
+      hours = _d(j['hours']),
+      grams = _d(j['grams']),
+      cost = _d(j['cost']),
+      energyKwh = _d(j['energy_kwh']),
+      energyCost = _d(j['energy_cost']),
+      progress = j['progress'] == null ? null : _i(j['progress']),
+      lastPrint = j['last_print'] == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch((_d(j['last_print']) * 1000).round()),
+      thumbnailPrint = j['thumbnail_print'] == null ? null : _i(j['thumbnail_print']);
+}
+
+class MaintenanceTask {
+  final int id;
+  final String name;
+  final double intervalH;
+  final String notes;
+  final DateTime lastDone;
+  final double hoursSince, hoursLeft, fraction;
+  final bool due, soon;
+
+  MaintenanceTask.fromJson(Map<String, dynamic> j)
+    : id = _i(j['id']),
+      name = j['name'] ?? '',
+      intervalH = _d(j['interval_h']),
+      notes = j['notes'] ?? '',
+      lastDone = DateTime.fromMillisecondsSinceEpoch((_d(j['last_done']) * 1000).round()),
+      hoursSince = _d(j['hours_since']),
+      hoursLeft = _d(j['hours_left']),
+      fraction = _d(j['fraction']),
+      due = j['due'] == true,
+      soon = j['soon'] == true;
+}
+
+class MaintenanceLog {
+  final String name;
+  final DateTime done;
+  final double hours;
+  final String notes;
+
+  MaintenanceLog.fromJson(Map<String, dynamic> j)
+    : name = j['name'] ?? '',
+      done = DateTime.fromMillisecondsSinceEpoch((_d(j['done']) * 1000).round()),
+      hours = _d(j['hours']),
+      notes = j['notes'] ?? '';
+}
+
+class MaintenanceOverview {
+  final String printerId;
+  final double hours;
+  final int due;
+  final List<MaintenanceTask> tasks;
+  final List<MaintenanceLog> log;
+
+  MaintenanceOverview.fromJson(Map<String, dynamic> j)
+    : printerId = j['printer_id'] ?? '',
+      hours = _d(j['hours']),
+      due = _i(j['due']),
+      tasks = [for (final x in (j['tasks'] as List? ?? [])) MaintenanceTask.fromJson(x)],
+      log = [for (final x in (j['log'] as List? ?? [])) MaintenanceLog.fromJson(x)];
+}
+
+/// Contenido del QR de las etiquetas de carretes.
+int? parseSpoolCode(String code) {
+  const prefix = 'openbambu:spool:';
+  final c = code.trim();
+  return c.startsWith(prefix) ? int.tryParse(c.substring(prefix.length)) : null;
 }

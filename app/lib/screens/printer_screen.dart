@@ -40,13 +40,22 @@ class _PrinterScreenState extends State<PrinterScreen> {
         'success' => AppColors.accent,
         _ => null,
       };
+      final finished = e.type == 'print_finished';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: color,
+          duration: Duration(seconds: finished ? 10 : 4),
           content: Text(
             '${e.title} · ${e.message}',
             style: color != null ? const TextStyle(color: Colors.black) : null,
           ),
+          action: finished
+              ? SnackBarAction(
+                  label: '¿Salió bien?',
+                  textColor: Colors.black,
+                  onPressed: () => _rateLatest(e.printerId),
+                )
+              : null,
         ),
       );
     });
@@ -59,6 +68,16 @@ class _PrinterScreenState extends State<PrinterScreen> {
   }
 
   void _go(int tab) => setState(() => _tab = tab);
+
+  /// Abre la última impresión terminada para calificarla.
+  Future<void> _rateLatest(String printerId) async {
+    final api = context.read<AppState>().api;
+    if (api == null) return;
+    try {
+      final recs = await api.history(printerId: printerId, unrated: true);
+      if (recs.isNotEmpty && mounted) showPrintDetail(context, recs.first, () {});
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {

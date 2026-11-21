@@ -54,7 +54,7 @@ class _ArchivePageState extends State<ArchivePage> {
     final t = Theme.of(context);
     final q = widget.query.trim().toLowerCase();
     final items = _items
-        .where((r) => _status == 'all' || r.status == _status)
+        .where((r) => _status == 'all' || (_status == 'unrated' ? r.needsRating : r.status == _status))
         .where((r) => q.isEmpty || r.name.toLowerCase().contains(q))
         .toList();
 
@@ -73,6 +73,7 @@ class _ArchivePageState extends State<ArchivePage> {
                 ('done', 'Terminadas'),
                 ('failed', 'Fallidas'),
                 ('cancelled', 'Canceladas'),
+                ('unrated', 'Sin calificar'),
               ])
                 ChoiceChip(label: Text(label), selected: _status == v, onSelected: (_) => setState(() => _status = v)),
               if (s.printers.length > 1) ...[
@@ -196,6 +197,28 @@ class _ArchiveCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (rec.rating != null || rec.needsRating)
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
+                        child: Icon(
+                          rec.rating == null
+                              ? Icons.rate_review_outlined
+                              : rec.rating == 'good'
+                              ? Icons.thumb_up_rounded
+                              : Icons.thumb_down_rounded,
+                          size: 15,
+                          color: rec.rating == null
+                              ? AppColors.warning
+                              : rec.rating == 'good'
+                              ? AppColors.accent
+                              : AppColors.danger,
+                        ),
+                      ),
+                    ),
                   if (rec.timelapse)
                     Positioned(
                       right: 8,

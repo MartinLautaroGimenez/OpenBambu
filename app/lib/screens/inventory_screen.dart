@@ -6,6 +6,7 @@ import '../api/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'tabs/activity_tab.dart' show money, grams;
+import '../widgets/spool_qr.dart';
 import 'tabs/ams_tab.dart' show filamentTypes, swatches;
 
 String trayLabel(int? tray) => tray == null ? 'Sin asignar' : (tray == 254 ? 'Externo' : 'A${tray % 4 + 1}');
@@ -22,7 +23,19 @@ class InventoryScreen extends StatelessWidget {
     final total = spools.fold<double>(0, (a, b) => a + b.remainingG);
     final value = spools.fold<double>(0, (a, b) => a + b.remainingG * b.pricePerGram);
     return Scaffold(
-      appBar: AppBar(title: const Text('Inventario de filamento')),
+      appBar: AppBar(
+        title: const Text('Inventario de filamento'),
+        actions: [
+          IconButton(
+            tooltip: 'Escanear etiqueta',
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            onPressed: () async {
+              final spool = await scanSpool(context);
+              if (spool != null && context.mounted) editSpool(context, spool: spool);
+            },
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => editSpool(context),
         icon: const Icon(Icons.add_rounded),
@@ -106,7 +119,11 @@ class _SpoolCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              IconButton(
+                tooltip: 'Etiqueta QR',
+                onPressed: () => showSpoolLabel(context, spool),
+                icon: const Icon(Icons.qr_code_2_rounded),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(

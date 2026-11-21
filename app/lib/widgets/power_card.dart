@@ -146,7 +146,10 @@ class _PowerSetupState extends State<_PowerSetup> {
   final _token = TextEditingController();
   Map<String, dynamic>? _cfg;
   List<Map<String, dynamic>>? _entities;
+  List<Map<String, dynamic>> _sensors = [];
   String? _entity;
+  String? _sensor;
+  final _price = TextEditingController();
   bool _autoOff = true;
   bool _autoOn = true;
   double _delay = 5;
@@ -167,6 +170,9 @@ class _PowerSetupState extends State<_PowerSetup> {
       _cfg = c;
       _url.text = c['url'] ?? '';
       _entity = (c['entities'] as Map?)?[widget.printer.id];
+      _sensor = (c['energy_entities'] as Map?)?[widget.printer.id];
+      final price = (c['price_kwh'] as num?) ?? 0;
+      _price.text = price > 0 ? '${price % 1 == 0 ? price.toInt() : price}' : '';
       _autoOff = c['auto_off'] != false;
       _autoOn = c['auto_on_queue'] != false;
       _delay = ((c['auto_off_delay_min'] ?? 5) as num).toDouble();
@@ -178,7 +184,13 @@ class _PowerSetupState extends State<_PowerSetup> {
     final api = context.read<AppState>().api;
     try {
       final e = await api!.powerEntities();
-      if (mounted) setState(() => _entities = e);
+      final sensors = await api.powerEntities(kind: 'energy');
+      if (mounted) {
+        setState(() {
+          _entities = e;
+          _sensors = sensors;
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -194,6 +206,12 @@ class _PowerSetupState extends State<_PowerSetup> {
     try {
       final entities = Map<String, dynamic>.from((_cfg?['entities'] as Map?) ?? {});
       if (_entity != null) entities[widget.printer.id] = _entity;
+      final energy = Map<String, dynamic>.from((_cfg?['energy_entities'] as Map?) ?? {});
+      if (_sensor != null) {
+        energy[widget.printer.id] = _sensor;
+      } else {
+        energy.remove(widget.printer.id);
+      }
       _cfg = await api.savePowerConfig({
         'url': _url.text.trim(),
         if (_token.text.trim().isNotEmpty) 'token': _token.text.trim(),
@@ -201,6 +219,8 @@ class _PowerSetupState extends State<_PowerSetup> {
         'auto_off': _autoOff,
         'auto_on_queue': _autoOn,
         'auto_off_delay_min': _delay.round(),
+        'energy_entities': energy,
+        'price_kwh': double.tryParse(_price.text.replaceAll(',', '.')) ?? 0,
       });
       if (close && _entity != null && mounted) {
         Navigator.pop(context);
@@ -265,6 +285,41 @@ class _PowerSetupState extends State<_PowerSetup> {
                 ],
                 onChanged: (v) => setState(() => _entity = v),
               ),
+            if (_entities != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Consumo eléctrico (opcional)',
+                style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Si el enchufe mide energía, cada impresión guarda los kWh y suma el costo de la luz.',
+                style: TextStyle(color: t.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String?>(
+                initialValue: _sensors.any((e) => e['entity_id'] == _sensor) ? _sensor : null,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Sensor de energía o potencia'),
+                items: [
+                  const DropdownMenuItem<String?>(value: null, child: Text('No medir')),
+                  for (final e in _sensors)
+                    DropdownMenuItem<String?>(
+                      value: e['entity_id'] as String,
+                      child: Text('${e['name']} (${e['state']} ${e['unit']})', overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _sensor = v),
+              ),
+              if (_sensor != null) ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _price,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Precio del kWh', prefixText: '\$ '),
+                ),
+              ],
+            ],
             const SizedBox(height: 6),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

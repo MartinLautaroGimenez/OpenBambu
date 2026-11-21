@@ -5,16 +5,11 @@ import '../../api/models.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
-import '../print_screen.dart';
-import '../timelapse_screen.dart';
 import 'events_tab.dart';
+import 'projects_view.dart';
+import '../../widgets/print_detail.dart';
 
-String money(double v) {
-  final s = v.round().toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-  return '\$ $s';
-}
-
-String grams(double g) => g >= 1000 ? '${(g / 1000).toStringAsFixed(2)} kg' : '${g.round()} g';
+export '../../widgets/print_detail.dart';
 
 /// Actividad: historial de impresiones, estadísticas y eventos.
 class ActivityTab extends StatefulWidget {
@@ -38,10 +33,12 @@ class _ActivityTabState extends State<ActivityTab> {
             width: double.infinity,
             child: SegmentedButton<int>(
               showSelectedIcon: false,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
               segments: const [
-                ButtonSegment(value: 0, icon: Icon(Icons.history_rounded), label: Text('Historial')),
-                ButtonSegment(value: 1, icon: Icon(Icons.insights_rounded), label: Text('Estadísticas')),
-                ButtonSegment(value: 2, icon: Icon(Icons.notifications_rounded), label: Text('Eventos')),
+                ButtonSegment(value: 0, label: Text('Historial')),
+                ButtonSegment(value: 1, label: Text('Stats')),
+                ButtonSegment(value: 2, label: Text('Proyectos')),
+                ButtonSegment(value: 3, label: Text('Eventos')),
               ],
               selected: {_view},
               onSelectionChanged: (v) => setState(() => _view = v.first),
@@ -54,6 +51,7 @@ class _ActivityTabState extends State<ActivityTab> {
             children: [
               _HistoryList(printer: widget.printer),
               StatsView(printerId: widget.printer.id),
+              const ProjectsView(),
               EventsTab(printer: widget.printer),
             ],
           ),
@@ -120,13 +118,6 @@ class _HistoryListState extends State<_HistoryList> {
   }
 }
 
-Color printStatusColor(String s) => switch (s) {
-  'done' => AppColors.accent,
-  'failed' => AppColors.danger,
-  'cancelled' => AppColors.warning,
-  _ => AppColors.info,
-};
-
 class _PrintCard extends StatelessWidget {
   final PrintRecord rec;
   final VoidCallback onChanged;
@@ -192,13 +183,27 @@ class _PrintCard extends StatelessWidget {
                           },
                           label: rec.status == 'printing' ? 'Imprimiendo' : rec.statusLabel,
                         ),
+                        if (rec.rating != null) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            rec.rating == 'good' ? Icons.thumb_up_rounded : Icons.thumb_down_rounded,
+                            size: 16,
+                            color: rec.rating == 'good' ? AppColors.accent : AppColors.danger,
+                          ),
+                        ] else if (rec.needsRating) ...[
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: 'Sin calificar',
+                            child: Icon(Icons.rate_review_outlined, size: 16, color: AppColors.warning),
+                          ),
+                        ],
                         const Spacer(),
                         if (rec.weightG != null)
                           Text(grams(rec.weightG!), style: const TextStyle(fontWeight: FontWeight.w700)),
-                        if (rec.cost != null) ...[
+                        if (rec.totalCost != null) ...[
                           const SizedBox(width: 8),
                           Text(
-                            money(rec.cost!),
+                            money(rec.totalCost!),
                             style: TextStyle(color: c, fontWeight: FontWeight.w700),
                           ),
                         ],
@@ -208,125 +213,6 @@ class _PrintCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Detalle de una impresión del historial: foto, timelapse, filamentos, reimprimir.
-void showPrintDetail(BuildContext context, PrintRecord rec, VoidCallback onChanged) {
-  {
-    final api = context.read<AppState>().api;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (c) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.75,
-        maxChildSize: 0.95,
-        builder: (c, scroll) => ListView(
-          controller: scroll,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          children: [
-            if (rec.snapshot && api != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: InteractiveViewer(child: Image.network(api.historySnapshot(rec.id), fit: BoxFit.cover)),
-                ),
-              ),
-            if (rec.timelapse && api != null) ...[
-              const SizedBox(height: 10),
-              FilledButton.tonalIcon(
-                style: FilledButton.styleFrom(minimumSize: const Size(0, 46)),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TimelapseScreen(url: api.historyTimelapse(rec.id), title: rec.name),
-                  ),
-                ),
-                icon: const Icon(Icons.movie_rounded),
-                label: const Text('Ver timelapse'),
-              ),
-            ],
-            const SizedBox(height: 14),
-            Text(rec.name, style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(
-              '${rec.statusLabel} · ${formatClock(rec.started)}'
-              '${rec.status != 'done' && rec.status != 'printing' ? ' · al ${rec.progress}%' : ''}'
-              '${rec.error != null ? ' · error ${rec.error}' : ''}',
-              style: TextStyle(color: printStatusColor(rec.status), fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Stat(icon: Icons.timer_outlined, label: 'Duración', value: formatDuration(rec.duration.inMinutes)),
-                Stat(
-                  icon: Icons.scale_rounded,
-                  label: 'Filamento',
-                  value: rec.weightG == null ? '—' : grams(rec.weightG!),
-                ),
-                Stat(icon: Icons.payments_outlined, label: 'Costo', value: rec.cost == null ? '—' : money(rec.cost!)),
-              ],
-            ),
-            if (rec.filaments.any((f) => f.type != null)) ...[
-              const SectionTitle('Filamentos'),
-              for (final f in rec.filaments.where((f) => f.type != null))
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(radius: 12, backgroundColor: parseHex(f.color) ?? Colors.grey),
-                  title: Text(f.type ?? ''),
-                  subtitle: Text(
-                    f.tray == null
-                        ? 'Sin bandeja'
-                        : (f.tray == 254 ? 'Carrete externo' : 'Bandeja A${f.tray! % 4 + 1}'),
-                  ),
-                  trailing: Text(
-                    [if (f.consumedG != null) grams(f.consumedG!), if (f.cost != null) money(f.cost!)].join(' · '),
-                  ),
-                ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-                    onPressed: () async {
-                      Navigator.pop(c);
-                      await api?.deleteHistory(rec.id);
-                      onChanged();
-                    },
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    label: const Text('Borrar'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: !rec.reprintable || api == null
-                        ? null
-                        : () async {
-                            final item = await api.libraryItem(rec.libraryId!);
-                            if (!c.mounted) return;
-                            Navigator.pop(c);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PrintScreen(printerId: rec.printerId, item: item),
-                              ),
-                            );
-                          },
-                    icon: const Icon(Icons.replay_rounded),
-                    label: const Text('Reimprimir'),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
@@ -413,7 +299,72 @@ class _StatsViewState extends State<StatsView> {
               tile(Icons.scale_rounded, 'Filamento usado', grams(s.grams), AppColors.nozzle),
               tile(Icons.payments_rounded, 'Gasto en filamento', money(s.cost), AppColors.warning),
               tile(Icons.cancel_rounded, 'Fallidas / canceladas', '${s.failed} / ${s.cancelled}', AppColors.danger),
+              tile(Icons.thumb_down_rounded, 'Rechazadas', '${s.ratedBad}', AppColors.danger),
+              tile(Icons.rate_review_outlined, 'Sin calificar', '${s.unrated}', AppColors.warning),
+              if (s.energyKwh > 0) ...[
+                tile(Icons.bolt_rounded, 'Energía', kwh(s.energyKwh), AppColors.bed),
+                tile(Icons.electric_meter_outlined, 'Gasto en luz', money(s.energyCost), AppColors.info),
+              ],
             ],
+          ),
+          const SectionTitle('Últimos 30 días'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Stat(icon: Icons.print_rounded, label: 'Impresiones', value: '${s.recentTotal}'),
+                      Stat(
+                        icon: Icons.verified_rounded,
+                        label: 'Éxito',
+                        value: s.recentSuccessRate == null ? '—' : '${s.recentSuccessRate} %',
+                      ),
+                      Stat(
+                        icon: Icons.report_problem_outlined,
+                        label: 'Problemas',
+                        value: '${s.issues.fold<int>(0, (a, e) => a + e.$2)}',
+                      ),
+                    ],
+                  ),
+                  if (s.issues.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 14),
+                      child: Text(
+                        'Sin fallas ni rechazos. Calificá las impresiones para un análisis más preciso.',
+                        style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
+                      ),
+                    )
+                  else ...[
+                    const SizedBox(height: 14),
+                    for (final (reason, count) in s.issues)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(reason)),
+                            SizedBox(
+                              width: 120,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(99),
+                                child: LinearProgressIndicator(
+                                  value: count / s.issues.first.$2,
+                                  minHeight: 8,
+                                  color: AppColors.danger,
+                                  backgroundColor: t.colorScheme.surfaceContainerHighest,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 32, child: Text('$count', textAlign: TextAlign.end)),
+                          ],
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
           ),
           const SectionTitle('Impresiones por mes'),
           Card(

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Para escanear las etiquetas QR de los carretes de filamento.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -28,13 +30,19 @@
 	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Para escanear las etiquetas QR de los carretes de filamento.</string>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 		<key>UISceneConfigurations</key>
 		<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Para escanear las etiquetas QR de los carretes de filamento.</string>
 			<key>UIWindowSceneSessionRoleApplication</key>
 			<array>
 				<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Para escanear las etiquetas QR de los carretes de filamento.</string>
 					<key>UISceneClassName</key>
 					<string>UIWindowScene</string>
 					<key>UISceneConfigurationName</key>
@@ -70,6 +78,8 @@
 	<string>OpenBambu se conecta a tu servidor en la red local para controlar la impresora.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Para escanear las etiquetas QR de los carretes de filamento.</string>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 		<key>NSAllowsLocalNetworking</key>

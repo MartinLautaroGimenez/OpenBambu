@@ -14,13 +14,15 @@ import '../tabs/activity_tab.dart';
 import '../tabs/ams_tab.dart';
 import '../tabs/control_tab.dart';
 import '../tabs/events_tab.dart';
+import '../maintenance_screen.dart';
 import '../tabs/print_tab.dart';
+import '../tabs/projects_view.dart';
 import '../tabs/status_tab.dart';
 import 'archive_page.dart';
 import 'printer_card.dart';
 import 'queue_page.dart';
 
-enum DeskPage { printers, queue, archive, stats, library, explore, filament, events, settings }
+enum DeskPage { printers, queue, archive, projects, stats, maintenance, library, explore, filament, events, settings }
 
 class _NavItem {
   final DeskPage page;
@@ -33,7 +35,9 @@ const _nav = [
   _NavItem(DeskPage.printers, Icons.print_rounded, 'Impresoras'),
   _NavItem(DeskPage.queue, Icons.queue_rounded, 'Cola'),
   _NavItem(DeskPage.archive, Icons.photo_library_rounded, 'Archivo'),
+  _NavItem(DeskPage.projects, Icons.workspaces_rounded, 'Proyectos'),
   _NavItem(DeskPage.stats, Icons.insights_rounded, 'Estadísticas'),
+  _NavItem(DeskPage.maintenance, Icons.build_circle_rounded, 'Mantenimiento'),
   _NavItem(DeskPage.library, Icons.folder_rounded, 'Biblioteca'),
   _NavItem(DeskPage.explore, Icons.explore_rounded, 'Explorar'),
   _NavItem(DeskPage.filament, Icons.palette_rounded, 'Filamento'),
@@ -191,6 +195,26 @@ class _DesktopShellState extends State<DesktopShell> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
             child: const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: StatsView(columns: 3)),
+          ),
+        ),
+      ),
+      DeskPage.projects => const _Page(
+        title: 'Proyectos',
+        subtitle: 'Grupos de impresiones con su avance, filamento y costo total',
+        child: Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: ProjectsView()),
+      ),
+      DeskPage.maintenance when selected != null => _Page(
+        title: 'Mantenimiento',
+        subtitle: 'Tareas según las horas de impresión de cada impresora',
+        actions: [if (s.printers.length > 1) _PrinterPicker(state: s)],
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: MaintenanceView(key: ValueKey(selected.id), printerId: selected.id),
+            ),
           ),
         ),
       ),

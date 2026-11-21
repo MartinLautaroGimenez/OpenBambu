@@ -24,6 +24,8 @@ class _PrintScreenState extends State<PrintScreen> {
   bool _loadingMapping = true;
   bool _busy = false;
   int _copies = 1;
+  int? _projectId;
+  List<Project> _projects = [];
   final Map<String, bool> _options = {
     'bed_leveling': true,
     'flow_cali': false,
@@ -35,6 +37,14 @@ class _PrintScreenState extends State<PrintScreen> {
   void initState() {
     super.initState();
     _suggest();
+    context
+        .read<AppState>()
+        .api
+        ?.projects()
+        .then((p) {
+          if (mounted) setState(() => _projects = p);
+        })
+        .catchError((_) {});
   }
 
   Future<void> _suggest() async {
@@ -105,6 +115,7 @@ class _PrintScreenState extends State<PrintScreen> {
         copies: _copies,
         bedClear: bedClear,
         startAfter: at,
+        projectId: _projectId,
       );
       s.setQueue(widget.printerId, q);
       if (!mounted) return;
@@ -166,6 +177,7 @@ class _PrintScreenState extends State<PrintScreen> {
         copies: _copies,
         startNow: now,
         bedClear: bedClear,
+        projectId: _projectId,
       );
       s.setQueue(widget.printerId, q);
       if (!mounted) return;
@@ -347,6 +359,28 @@ class _PrintScreenState extends State<PrintScreen> {
               ),
             ),
           ),
+          if (_projects.isNotEmpty) ...[
+            const SectionTitle('Proyecto'),
+            DropdownButtonFormField<int?>(
+              initialValue: _projectId,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.workspaces_outline)),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('Sin proyecto')),
+                for (final p in _projects)
+                  DropdownMenuItem<int?>(
+                    value: p.id,
+                    child: Row(
+                      children: [
+                        CircleAvatar(radius: 6, backgroundColor: parseHex(p.color) ?? AppColors.accent),
+                        const SizedBox(width: 10),
+                        Text(p.name),
+                      ],
+                    ),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _projectId = v),
+            ),
+          ],
         ],
       ),
       bottomNavigationBar: SafeArea(

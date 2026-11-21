@@ -48,6 +48,7 @@ dependencies:
   video_player: ^2.14.1
   home_widget: ^0.10.0
   path_provider: ^2.1.6
+  mobile_scanner: ^7.5.0
 
 dev_dependencies:
   flutter_test:
