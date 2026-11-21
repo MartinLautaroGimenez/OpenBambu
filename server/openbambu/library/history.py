@@ -35,9 +35,22 @@ class HistoryRecorder:
         self._prev: dict[str, str] = {}
         self._tasks: set[asyncio.Task] = set()
         self.listeners: list = []
+        self.finish_listeners: list = []  # fn(printer_id, record)
+        self.power = None  # PowerManager (medición de energía)
+        self._meters: dict[int, asyncio.Task] = {}
+        self._meter_kwh: dict[int, float] = {}
 
     def snapshot_path(self, print_id: int) -> Path:
         return self.dir / f"{print_id}.jpg"
+
+    def _spawn(self, coro) -> None:
+        try:
+            t = asyncio.get_running_loop().create_task(coro)
+        except RuntimeError:
+            coro.close()  # sin loop (llamado desde otro hilo)
+            return
+        self._tasks.add(t)
+        t.add_done_callback(self._tasks.discard)
 
     def _changed(self) -> None:
         for fn in list(self.listeners):
@@ -59,10 +72,12 @@ class HistoryRecorder:
     def _start(self, pid: str, snap: dict) -> None:
         job = snap["job"]
         library_id, plate, job_id, name = None, 1, None, job["name"] or "Impresión"
+        project_id = None
         qjob = self.store.active_job(pid)
         mapping: dict[int, int] = {}
         if qjob:
             library_id, plate, job_id, name = qjob["library_id"], qjob["plate"], qjob["id"], qjob["name"]
+            project_id = qjob["options"].get("project_id")
             mapping = {m["filament_id"]: m["tray"] for m in qjob["ams_mapping"] if m.get("tray") is not None}
         elif job["file"] and (m := LIB_FILE.search(job["file"])):
             library_id = m[1]
@@ -82,9 +97,56 @@ class HistoryRecorder:
             # Sin datos del laminador: registrar al menos la bandeja en uso
             filaments.append({"filament_id": 1, "type": None, "color": None, "used_g": None,
                               "tray": snap["ams"]["active_tray"]})
-        self.store.add_print(printer_id=pid, name=name, file=job["file"], library_id=library_id, plate=plate,
-                             job_id=job_id, status="printing", weight_g=weight, filaments=filaments)
+        if project_id is not None and not self.store.get_project(project_id):
+            project_id = None
+        print_id = self.store.add_print(printer_id=pid, name=name, file=job["file"], library_id=library_id,
+                                        plate=plate, job_id=job_id, status="printing", weight_g=weight,
+                                        filaments=filaments, project_id=project_id)
         log.info("Historial: comenzó «%s» en %s", name, pid)
+        self._spawn(self._energy_start(pid, print_id))
+        self._changed()
+
+    # ---- energía (sensor de Home Assistant) ----------------------------------------
+    async def _energy_start(self, pid: str, print_id: int) -> None:
+        if not self.power:
+            return
+        r = await self.power.energy_reading(pid)
+        if not r:
+            return
+        kind, value = r
+        if kind == "energy":
+            self.store.update_print(print_id, energy_start=value)
+        else:
+            self._meter_kwh[print_id] = 0.0
+            self._meters[print_id] = asyncio.get_running_loop().create_task(self._integrate(pid, print_id, value))
+
+    async def _integrate(self, pid: str, print_id: int, watts: float, every: float = 30) -> None:
+        """Sensor de potencia (W): integra el consumo mientras dure la impresión."""
+        last = time.monotonic()
+        while True:
+            await asyncio.sleep(every)
+            now = time.monotonic()
+            self._meter_kwh[print_id] = self._meter_kwh.get(print_id, 0) + watts * (now - last) / 3_600_000
+            last = now
+            r = await self.power.energy_reading(pid) if self.power else None
+            if r and r[0] == "power":
+                watts = r[1]
+
+    async def _energy_finish(self, pid: str, rec: dict) -> None:
+        kwh = None
+        meter = self._meters.pop(rec["id"], None)
+        if meter:
+            meter.cancel()
+            kwh = self._meter_kwh.pop(rec["id"], None)
+        elif rec.get("energy_start") is not None and self.power:
+            r = await self.power.energy_reading(pid)
+            if r and r[0] == "energy" and r[1] >= rec["energy_start"]:
+                kwh = r[1] - rec["energy_start"]
+        if kwh is None:
+            return
+        price = self.power.cfg.price_kwh if self.power else 0
+        self.store.update_print(rec["id"], energy_kwh=round(kwh, 3),
+                                energy_cost=round(kwh * price, 2) if price else None)
         self._changed()
 
     def _finish(self, pid: str, rec: dict, snap: dict) -> None:
@@ -121,12 +183,13 @@ class HistoryRecorder:
             error=f"{job['print_error']:08X}" if status == "failed" and job["print_error"] else None,
         )
         log.info("Historial: «%s» terminó (%s, %.1f g)", rec["name"], status, total_g)
-        try:
-            t = asyncio.get_running_loop().create_task(self._save_snapshot(pid, rec["id"]))
-            self._tasks.add(t)
-            t.add_done_callback(self._tasks.discard)
-        except RuntimeError:
-            pass  # sin loop (llamado desde otro hilo): sin foto
+        self._spawn(self._save_snapshot(pid, rec["id"]))
+        self._spawn(self._energy_finish(pid, rec))
+        for fn in list(self.finish_listeners):
+            try:
+                fn(pid, rec)
+            except Exception:  # noqa: BLE001
+                log.exception("Error al procesar el fin de impresión")
         self._changed()
 
     async def _save_snapshot(self, pid: str, print_id: int) -> None:
@@ -143,14 +206,50 @@ class HistoryRecorder:
             self._changed()
 
 
+REJECT_REASONS = {
+    "adhesion": "Se despegó de la cama",
+    "spaghetti": "Spaghetti / se soltó",
+    "layer_shift": "Capas corridas",
+    "under_extrusion": "Falta de extrusión",
+    "stringing": "Hilos / stringing",
+    "warping": "Warping",
+    "dimensions": "Medidas incorrectas",
+    "surface": "Mala terminación",
+    "other": "Otro",
+}
+
+
+def print_ok(p: dict) -> bool:
+    """Terminó y no fue rechazada al calificarla."""
+    return p["status"] == "done" and p.get("rating") != "bad"
+
+
 def compute_stats(prints: list[dict], months: int = 6) -> dict:
     finished = [p for p in prints if p["status"] != "printing"]
     by_status = Counter(p["status"] for p in finished)
-    done = [p for p in finished if p["status"] == "done"]
+    ok = [p for p in finished if print_ok(p)]
     seconds = sum((p["finished"] or p["started"]) - p["started"] for p in finished)
     grams = sum(p["weight_g"] or 0 for p in finished)
     cost = sum(p["cost"] or 0 for p in finished)
+    kwh = sum(p.get("energy_kwh") or 0 for p in finished)
+    energy_cost = sum(p.get("energy_cost") or 0 for p in finished)
+    rated_good = sum(1 for p in finished if p["status"] == "done" and p.get("rating") == "good")
+    rated_bad = sum(1 for p in finished if p.get("rating") == "bad")
+    unrated = sum(1 for p in finished if p["status"] == "done" and not p.get("rating"))
 
+    # Análisis de fallas de los últimos 30 días
+    since = time.time() - 30 * 86400
+    issues: Counter[str] = Counter()
+    for p in finished:
+        if p["started"] < since:
+            continue
+        if p["status"] == "failed":
+            issues["Error de la impresora" + (f" ({p['error']})" if p.get("error") else "")] += 1
+        elif p["status"] == "cancelled":
+            issues["Cancelada"] += 1
+        elif p.get("rating") == "bad":
+            issues[REJECT_REASONS.get(p.get("rating_reason") or "other", "Otro")] += 1
+    recent = [p for p in finished if p["started"] >= since]
     now = datetime.now()
     keys = []
     y, m = now.year, now.month
@@ -176,7 +275,15 @@ def compute_stats(prints: list[dict], months: int = 6) -> dict:
         "done": by_status.get("done", 0),
         "failed": by_status.get("failed", 0),
         "cancelled": by_status.get("cancelled", 0),
-        "success_rate": round(len(done) / len(finished) * 100) if finished else None,
+        "success_rate": round(len(ok) / len(finished) * 100) if finished else None,
+        "rated_good": rated_good,
+        "rated_bad": rated_bad,
+        "unrated": unrated,
+        "energy_kwh": round(kwh, 2),
+        "energy_cost": round(energy_cost, 2),
+        "recent_total": len(recent),
+        "recent_success_rate": round(sum(1 for p in recent if print_ok(p)) / len(recent) * 100) if recent else None,
+        "issues": [{"reason": k, "count": v} for k, v in issues.most_common()],
         "hours": round(seconds / 3600, 1),
         "grams": round(grams, 1),
         "cost": round(cost, 2),

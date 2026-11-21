@@ -56,6 +56,11 @@ class PrinterManager:
         self.timelapse = TimelapseRecorder(self.store, self.printers, Path(settings.data_dir))
         self.timelapse.listeners.append(self.history._changed)
         self.queue.power = self.power
+        self.history.power = self.power
+        from .library.maintenance import MaintenanceService
+        self.maintenance = MaintenanceService(self.store, self.printers, emit=self._warn_event)
+        self.maintenance.listeners.append(lambda _pid: self.history._changed())
+        self.history.finish_listeners.append(self.maintenance.check)
         from .library.objects import ObjectsService
         self.objects = ObjectsService(self)
         self.catalog = CatalogService(settings.catalog, self.store)
@@ -173,6 +178,10 @@ class PrinterManager:
     def _power_event(self, pid: str, type_: str, title: str, message: str) -> None:
         p = self.printers.get(pid)
         self.emit(Event(pid, p.cfg.name if p else pid, type_, title, message))
+
+    def _warn_event(self, pid: str, type_: str, title: str, message: str) -> None:
+        p = self.printers.get(pid)
+        self.emit(Event(pid, p.cfg.name if p else pid, type_, title, message, severity="warning"))
 
     def emit(self, ev: Event) -> None:
         self.bus.publish(ev)

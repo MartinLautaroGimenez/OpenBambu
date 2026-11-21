@@ -14,6 +14,7 @@ from . import __version__
 from .api.catalog import router as catalog_router
 from .api.files import router as files_router
 from .api.history import router as history_router
+from .api.maintenance import router as maintenance_router
 from .api.power import router as power_router
 from .api.printers_admin import router as admin_router
 from .api.routes import router
@@ -43,6 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(history_router)
     app.include_router(power_router)
     app.include_router(admin_router)
+    app.include_router(maintenance_router)
     _mount_web(app)
     return app
 

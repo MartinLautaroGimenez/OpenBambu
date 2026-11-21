@@ -29,6 +29,8 @@ class PowerConfigIn(BaseModel):
     auto_off_delay_min: int | None = Field(None, ge=0, le=240)
     auto_off_max_nozzle: int | None = Field(None, ge=30, le=120)
     auto_on_queue: bool | None = None
+    energy_entities: dict[str, str] | None = None
+    price_kwh: float | None = Field(None, ge=0)
 
 
 @router.get("/power/config")
@@ -48,11 +50,11 @@ async def put_config(body: PowerConfigIn, mgr: PrinterManager = Depends(manager)
 
 
 @router.get("/power/entities")
-async def entities(mgr: PrinterManager = Depends(manager)):
+async def entities(kind: str = "switch", mgr: PrinterManager = Depends(manager)):
     if not mgr.power.cfg.configured:
         raise HTTPException(422, "Configurá la URL y el token de Home Assistant")
     try:
-        return await mgr.power.ha.entities()
+        return await mgr.power.ha.entities("energy" if kind == "energy" else "switch")
     except Exception as e:  # noqa: BLE001
         raise _ha_error(e) from e
 

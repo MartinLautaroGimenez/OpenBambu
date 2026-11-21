@@ -12,12 +12,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3 python3-venv ca-certificates curl tzdata ffmpeg \
+        python3 python3-venv ca-certificates curl tzdata ffmpeg fonts-dejavu-core \
     && if [ "$WITH_SLICER" = "1" ]; then apt-get install -y --no-install-recommends \
         xvfb xauth libgtk-3-0t64 libwebkit2gtk-4.1-0 libsoup-3.0-0 libsecret-1-0 \
         libegl1 libgl1 libglu1-mesa libgles2 libgl1-mesa-dri libosmesa6 \
         libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 gstreamer1.0-plugins-base \
-        libfuse2t64 fonts-dejavu-core ; fi \
+        libfuse2t64 ; fi \
     && rm -rf /var/lib/apt/lists/*
 
 # OrcaSlicer: AppImage oficial extraído en /opt/orca (no necesita FUSE).

@@ -26,6 +26,8 @@ from pydantic import BaseModel, Field
 log = logging.getLogger(__name__)
 
 DOMAINS = ("switch", "light", "input_boolean", "fan")
+# unidad -> (tipo, factor a kWh o a W)
+ENERGY_UNITS = {"kWh": ("energy", 1.0), "Wh": ("energy", 0.001), "W": ("power", 1.0), "kW": ("power", 1000.0)}
 
 
 class PowerConfig(BaseModel):
@@ -37,6 +39,9 @@ class PowerConfig(BaseModel):
     auto_off_delay_min: int = Field(5, ge=0, le=240)
     auto_off_max_nozzle: int = Field(50, ge=30, le=120)
     auto_on_queue: bool = True
+    # Sensor de energía (kWh, total acumulado) o de potencia (W) por impresora
+    energy_entities: dict[str, str] = {}
+    price_kwh: float = Field(0, ge=0)
 
     @property
     def configured(self) -> bool:
@@ -72,7 +77,20 @@ class HomeAssistant:
             raise PermissionError("Token de Home Assistant inválido")
         r.raise_for_status()
 
-    async def entities(self) -> list[dict]:
+    async def sensor(self, entity: str) -> tuple[float, str] | None:
+        """Valor numérico y unidad de un sensor (None si no está disponible)."""
+        r = await self.client.get(self._url(f"/states/{entity}"), headers=self._headers)
+        if r.status_code == 401:
+            raise PermissionError("Token de Home Assistant inválido")
+        r.raise_for_status()
+        data = r.json()
+        try:
+            value = float(data.get("state"))
+        except (TypeError, ValueError):
+            return None
+        return value, (data.get("attributes") or {}).get("unit_of_measurement") or ""
+
+    async def entities(self, kind: str = "switch") -> list[dict]:
         r = await self.client.get(self._url("/states"), headers=self._headers)
         if r.status_code == 401:
             raise PermissionError("Token de Home Assistant inválido")
@@ -80,9 +98,17 @@ class HomeAssistant:
         out = []
         for e in r.json():
             eid = e.get("entity_id", "")
-            if eid.split(".", 1)[0] in ("switch", "light", "input_boolean"):
-                out.append({"entity_id": eid, "name": (e.get("attributes") or {}).get("friendly_name") or eid,
-                            "state": e.get("state")})
+            attrs = e.get("attributes") or {}
+            item = {"entity_id": eid, "name": attrs.get("friendly_name") or eid, "state": e.get("state")}
+            if kind == "energy":
+                unit = attrs.get("unit_of_measurement") or ""
+                if eid.startswith("sensor.") and unit in ENERGY_UNITS:
+                    out.append({**item, "unit": unit})
+            elif eid.split(".", 1)[0] in ("switch", "light", "input_boolean"):
+                out.append(item)
+        if kind == "energy":
+            # Primero los de energía acumulada (más precisos)
+            return sorted(out, key=lambda x: (ENERGY_UNITS[x["unit"]][0] != "energy", x["name"].lower()))
         return sorted(out, key=lambda x: (not x["entity_id"].startswith("switch."), x["name"].lower()))
 
 
@@ -127,6 +153,24 @@ class PowerManager:
 
     def entity(self, pid: str) -> str | None:
         return self.cfg.entities.get(pid) if self.cfg.configured else None
+
+    def energy_entity(self, pid: str) -> str | None:
+        return self.cfg.energy_entities.get(pid) if self.cfg.configured else None
+
+    async def energy_reading(self, pid: str) -> tuple[str, float] | None:
+        """("energy", kWh acumulados) o ("power", W instantáneos), o None."""
+        ent = self.energy_entity(pid)
+        if not ent:
+            return None
+        try:
+            r = await self.ha.sensor(ent)
+        except Exception as e:  # noqa: BLE001
+            log.debug("Sensor de energía %s no disponible: %s", ent, e)
+            return None
+        if not r or r[1] not in ENERGY_UNITS:
+            return None
+        kind, factor = ENERGY_UNITS[r[1]]
+        return kind, r[0] * factor
 
     # ---- acciones -------------------------------------------------------------
     async def status(self, pid: str) -> dict:
