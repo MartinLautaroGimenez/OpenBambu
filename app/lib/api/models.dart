@@ -238,6 +238,7 @@ class LibraryItem {
   final String? format;
   final String? catalogImage;
   final List<Plate> plates;
+  final List<ProjectPlate> projectPlates;
 
   LibraryItem.fromJson(Map<String, dynamic> j)
     : id = j['id'],
@@ -249,7 +250,10 @@ class LibraryItem {
       sliced = (j['meta'] ?? const {})['sliced'] == true,
       format = (j['meta'] ?? const {})['format'],
       catalogImage = ((j['meta'] ?? const {})['catalog'] ?? const {})['image'],
-      plates = [for (final p in ((j['meta'] ?? const {})['plates'] as List? ?? [])) Plate.fromJson(p)];
+      plates = [for (final p in ((j['meta'] ?? const {})['plates'] as List? ?? [])) Plate.fromJson(p)],
+      projectPlates = [
+        for (final p in ((j['meta'] ?? const {})['project_plates'] as List? ?? [])) ProjectPlate.fromJson(p),
+      ];
 }
 
 class SdFile {
@@ -468,6 +472,9 @@ class CatalogFile {
   final double? weightG;
   final List<FileFilament> filaments;
   final String? image;
+  final List<ProjectPlate> plates;
+  final List<String> pictures;
+  final String description;
 
   CatalogFile.fromJson(Map<String, dynamic> j)
     : id = '${j['id']}',
@@ -481,7 +488,55 @@ class CatalogFile {
         for (final (i, f) in ((j['filaments'] as List? ?? []).indexed))
           FileFilament.fromJson({'id': i + 1, ...(f as Map<String, dynamic>)}),
       ],
-      image = j['image'];
+      image = j['image'],
+      plates = [
+        for (final p in (j['plates'] as List? ?? []))
+          ProjectPlate.fromJson({...(p as Map<String, dynamic>), 'image': p['thumbnail'], 'thumbnail': false}),
+      ],
+      pictures = [for (final x in (j['pictures'] as List? ?? [])) '$x'],
+      description = j['description'] ?? '';
+}
+
+/// Placa de un proyecto sin laminar (o de un perfil de MakerWorld).
+class ProjectPlate {
+  final int index;
+  final String name;
+
+  /// El .3mf trae miniatura propia de la placa.
+  final bool thumbnail;
+
+  /// Foto de la placa en MakerWorld.
+  final String? image;
+  final int objects;
+  final int? predictionS;
+  final double? weightG;
+  final List<FileFilament> filaments;
+
+  ProjectPlate.fromJson(Map<String, dynamic> j)
+    : index = _i(j['index'], 1),
+      name = j['name'] ?? '',
+      thumbnail = j['thumbnail'] == true,
+      image = j['image'],
+      objects = _i(j['objects']),
+      predictionS = j['prediction_s'] == null ? null : _i(j['prediction_s']),
+      weightG = j['weight_g'] == null ? null : _d(j['weight_g']),
+      filaments = [
+        for (final (i, f) in ((j['filaments'] as List? ?? []).indexed))
+          FileFilament.fromJson({'id': i + 1, ...(f as Map<String, dynamic>)}),
+      ];
+
+  String get label => name.isNotEmpty ? name : 'Placa $index';
+}
+
+class ProjectInfo {
+  final List<ProjectPlate> plates;
+  final List<FileFilament> filaments;
+  final String? printer;
+
+  ProjectInfo.fromJson(Map<String, dynamic> j)
+    : plates = [for (final p in (j['project_plates'] as List? ?? [])) ProjectPlate.fromJson(p)],
+      filaments = [for (final f in (j['project_filaments'] as List? ?? [])) FileFilament.fromJson(f)],
+      printer = j['project_printer'];
 }
 
 class CatalogDetail {

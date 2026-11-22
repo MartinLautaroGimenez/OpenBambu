@@ -46,6 +46,10 @@ class CatalogFile:
     weight_g: float | None = None
     filaments: list[dict] = field(default_factory=list)
     image: str | None = None
+    # Perfiles de MakerWorld: placas con miniatura, tiempo, peso y filamentos
+    plates: list[dict] = field(default_factory=list)
+    pictures: list[str] = field(default_factory=list)
+    description: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)

@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from .store import Store
-from .threemf import InvalidFile, read_3mf
+from .threemf import InvalidFile, read_3mf, read_project
 
 UPLOAD_EXT = (".3mf", ".stl", ".obj", ".step", ".stp")
 
@@ -40,5 +40,6 @@ def ingest(store: Store, lid: str, folder: Path, filename: str, source: str,
             raise
         if not meta["sliced"]:
             meta["format"] = "3mf"
+            meta.update(read_project(path))
     meta.update(extra_meta or {})
     return store.insert_file(lid, name or display_name(filename), filename, path.stat().st_size, source, meta)

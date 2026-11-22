@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import struct
 import sys
 import tempfile
@@ -14,7 +15,7 @@ import zipfile
 from pathlib import Path
 
 from ..library.threemf import read_3mf
-from .orca import orca_binary, orca_version, run_orca
+from .orca import orca_binary, orca_version, run_orca, slice_file
 from .profiles import MACHINE_FOR_MODEL, get_library
 
 
@@ -60,6 +61,8 @@ async def main(model: str = "A1") -> int:
     process = next(p["name"] for p in procs if p["name"].startswith("0.20mm Standard"))
     filament = lib.default_filament(machine, "PLA")
     print(f"Usando: {process} + {filament}")
+    import json as _json
+
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         stl = work / "cubo.stl"
@@ -76,7 +79,6 @@ async def main(model: str = "A1") -> int:
 
         from ..library.preview import build_preview
 
-        import json as _json
         prev = _json.loads(build_preview(result, 1, work / "prev"))
         types = Counter(p["t"] for layer in prev["layers"] for p in layer["paths"])
         print(f"Vista previa: {len(prev['layers'])} capas, {prev['points']} puntos, bbox {prev['bbox']}, "
@@ -96,7 +98,36 @@ async def main(model: str = "A1") -> int:
         if len(prev["layers"]) < 50 or "ow" not in types:
             print("ERROR: la vista previa no reconoce bien el G-code de OrcaSlicer")
             return 1
-        return 0 if meta["sliced"] else 1
+        if not meta["sliced"]:
+            return 1
+
+        # Proyecto .3mf como los de MakerWorld: sin G-code y con un ajuste de Bambu Studio fuera de rango
+        project = work / "proyecto.3mf"
+        with zipfile.ZipFile(result) as zin, zipfile.ZipFile(project, "w", zipfile.ZIP_DEFLATED) as zout:
+            for info in zin.infolist():
+                if re.match(r"Metadata/plate_\d+\.gcode", info.filename) or info.filename.endswith(".md5") \
+                        or info.filename == "Metadata/slice_info.config":
+                    continue
+                data = zin.read(info.filename)
+                if info.filename == "Metadata/project_settings.config":
+                    cfg = _json.loads(data)
+                    cfg["raft_first_layer_expansion"] = "-1"
+                    cfg["support_style"] = "tree_organic"
+                    data = _json.dumps(cfg).encode()
+                zout.writestr(info, data)
+        from ..library.threemf import read_project
+
+        print(f"Proyecto: {read_project(project)}")
+        for label, proc in (("ajustes del proyecto", None), ("perfil elegido", lib.resolve(process))):
+            t0 = time.time()
+            res = await slice_file(project, lib.resolve(machine), proc, [lib.resolve(filament)], work / label,
+                                   plate=1, on_line=lambda line: print("  orca:", line))
+            pm = read_3mf(res)
+            print(f"Proyecto con {label}: OK en {time.time() - t0:.0f} s, placas laminadas "
+                  f"{[p['index'] for p in pm['plates']]}, {pm['plates'][0]['weight_g']} g")
+            if not pm["sliced"]:
+                return 1
+        return 0
 
 
 if __name__ == "__main__":

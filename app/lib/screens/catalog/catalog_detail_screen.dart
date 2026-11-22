@@ -7,6 +7,7 @@ import '../../api/models.dart';
 import '../../state/app_state.dart';
 import '../../theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/plate_card.dart';
 import '../../widgets/makerworld_login.dart';
 import '../print_screen.dart';
 import '../slice_screen.dart';
@@ -307,53 +308,94 @@ class _FileTile extends StatelessWidget {
       if (file.weightG != null) '${file.weightG!.round()} g',
       if (file.size != null) '${(file.size! / 1024 / 1024).toStringAsFixed(1)} MB',
     ];
+    final api = context.read<AppState>().api;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: CheckboxListTile(
-        value: selected,
-        onChanged: (v) => onChanged(v ?? false),
-        controlAffinity: ListTileControlAffinity.leading,
-        title: Text(
-          file.name,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (details.isNotEmpty) Text(details.join(' · ')),
-            if (file.filaments.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Row(
-                  children: [
-                    for (final f in file.filaments.take(8))
-                      Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: Tooltip(
-                          message: f.type,
-                          child: CircleAvatar(radius: 7, backgroundColor: parseHex(f.color) ?? Colors.grey),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CheckboxListTile(
+            value: selected,
+            onChanged: (v) => onChanged(v ?? false),
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(
+              file.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (details.isNotEmpty) Text(details.join(' · ')),
+                if (file.plates.length > 1) Text('${file.plates.length} placas'),
+                if (file.filaments.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        for (final f in file.filaments.take(8))
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Tooltip(
+                              message: f.type,
+                              child: CircleAvatar(radius: 7, backgroundColor: parseHex(f.color) ?? Colors.grey),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            secondary: mine
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Tu ${file.printer}',
+                      style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 12),
+                    ),
+                  )
+                : Text(file.kind == 'profile' ? 'PERFIL' : file.kind.toUpperCase(), style: t.textTheme.labelSmall),
+          ),
+          if (file.plates.isNotEmpty || file.pictures.isNotEmpty)
+            SizedBox(
+              height: file.plates.isNotEmpty ? 212 : 112,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                children: [
+                  for (final p in file.plates)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: PlateCard(plate: p, width: 140),
+                    ),
+                  for (final pic in file.pictures)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: GestureDetector(
+                        onTap: api == null
+                            ? null
+                            : () => showImageViewer(context, api.catalogImage(pic, width: 1400), title: file.name),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: SizedBox(
+                            width: 140,
+                            height: file.plates.isNotEmpty ? 140 : 100,
+                            child: api == null
+                                ? null
+                                : Image.network(api.catalogImage(pic, width: 400), fit: BoxFit.cover),
+                          ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
-          ],
-        ),
-        secondary: mine
-            ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Tu ${file.printer}',
-                  style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 12),
-                ),
-              )
-            : Text(file.kind == 'profile' ? 'PERFIL' : file.kind.toUpperCase(), style: t.textTheme.labelSmall),
+            ),
+        ],
       ),
     );
   }

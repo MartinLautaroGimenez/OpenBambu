@@ -119,3 +119,90 @@ def read_plate_objects(path: Path, plate: int) -> list[dict]:
         if "id" in o:
             out.append({"id": int(o["id"]), "name": o.get("name") or None, "bbox": bbox if len(bbox) == 4 else None})
     return out
+
+
+def read_project(path: Path) -> dict:
+    """Placas y filamentos de un proyecto .3mf sin laminar (Bambu Studio / OrcaSlicer).
+
+    ``{"project_plates": [{index, name, thumbnail, objects}], "project_filaments": [{id, type, color}],
+    "project_printer": str | None}``
+    """
+    import json
+
+    try:
+        zf = zipfile.ZipFile(path)
+    except zipfile.BadZipFile as e:
+        raise InvalidFile("No es un archivo 3MF válido") from e
+    with zf:
+        names = set(zf.namelist())
+        plates: list[dict] = []
+        if "Metadata/model_settings.config" in names:
+            try:
+                root = ET.fromstring(zf.read("Metadata/model_settings.config"))
+            except ET.ParseError:
+                root = None
+            for pl in root.findall("plate") if root is not None else []:
+                meta = _meta(pl)
+                try:
+                    idx = int(meta.get("plater_id") or meta.get("index") or 0)
+                except ValueError:
+                    continue
+                if idx <= 0:
+                    continue
+                plates.append({
+                    "index": idx,
+                    "name": meta.get("plater_name") or "",
+                    "thumbnail": f"Metadata/plate_{idx}.png" in names,
+                    "objects": len(pl.findall("model_instance")),
+                })
+        if not plates:
+            idxs = sorted({int(m[1]) for n in names if (m := re.fullmatch(r"Metadata/plate_(\d+)\.png", n))})
+            plates = [{"index": i, "name": "", "thumbnail": True, "objects": 0} for i in idxs] or \
+                [{"index": 1, "name": "", "thumbnail": False, "objects": 0}]
+        filaments, printer = [], None
+        if "Metadata/project_settings.config" in names:
+            try:
+                cfg = json.loads(zf.read("Metadata/project_settings.config"))
+            except ValueError:
+                cfg = {}
+            types = cfg.get("filament_type") or []
+            colors = cfg.get("filament_colour") or []
+            for i, t in enumerate(types):
+                c = (colors[i] if i < len(colors) else "") or ""
+                filaments.append({"id": i + 1, "type": t, "color": c[:7].upper() if c.startswith("#") else None})
+            printer = cfg.get("printer_model") or None
+    return {"project_plates": sorted(plates, key=lambda p: p["index"]), "project_filaments": filaments,
+            "project_printer": printer}
+
+
+def sanitize_project(src: Path, dest: Path, drop: set[str] | None = None) -> list[str]:
+    """Copia el proyecto quitando ajustes que OrcaSlicer rechaza (valores de Bambu Studio fuera de rango).
+
+    Devuelve las claves quitadas.
+    """
+    import json
+
+    drop = set(drop or ())
+    removed: list[str] = []
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zout:
+        for info in zin.infolist():
+            data = zin.read(info.filename)
+            if info.filename == "Metadata/project_settings.config":
+                try:
+                    cfg = json.loads(data)
+                except ValueError:
+                    cfg = None
+                if isinstance(cfg, dict):
+                    for k in list(cfg):
+                        v = cfg[k]
+                        # En Bambu Studio -1 significa "automático"; OrcaSlicer no lo acepta en algunos campos
+                        if k in drop or (k in NEGATIVE_AUTO and str(v).strip() in ("-1", "-1.0")):
+                            cfg.pop(k)
+                            removed.append(k)
+                    data = json.dumps(cfg, indent=4).encode()
+            zout.writestr(info, data)
+    return removed
+
+
+# Ajustes donde Bambu Studio guarda -1 como "automático"
+NEGATIVE_AUTO = {"raft_first_layer_expansion"}

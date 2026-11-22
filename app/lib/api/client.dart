@@ -166,10 +166,11 @@ class ApiClient {
   Future<SliceJob> slice(
     String libraryId, {
     required String printerId,
-    required String process,
+    required String? process,
     required List<String> filaments,
     required Map<String, dynamic> overrides,
     int copies = 1,
+    int plate = 0,
   }) async => SliceJob.fromJson(
     await _req(
       'POST',
@@ -180,9 +181,13 @@ class ApiClient {
         'filaments': filaments,
         'overrides': overrides,
         'copies': copies,
+        'plate': plate,
       },
     ),
   );
+
+  Future<ProjectInfo> projectInfo(String libraryId) async =>
+      ProjectInfo.fromJson(await _req('GET', '/library/$libraryId/project'));
 
   Future<SliceJob> sliceJob(String id) async => SliceJob.fromJson(await _req('GET', '/slicer/jobs/$id'));
 

@@ -340,6 +340,7 @@ class _LibraryCard extends StatelessWidget {
     final t = Theme.of(context);
     final api = context.read<AppState>().api;
     final plate = item.plates.isEmpty ? null : item.plates.first;
+    final projectThumb = item.projectPlates.where((p) => p.thumbnail).firstOrNull;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -353,6 +354,12 @@ class _LibraryCard extends StatelessWidget {
               child: plate != null && plate.thumbnail && api != null
                   ? Image.network(
                       api.thumbnail(item.id, plate.index).toString(),
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(Icons.view_in_ar_rounded),
+                    )
+                  : projectThumb != null && api != null
+                  ? Image.network(
+                      api.thumbnail(item.id, projectThumb.index).toString(),
                       fit: BoxFit.contain,
                       errorBuilder: (_, _, _) => const Icon(Icons.view_in_ar_rounded),
                     )
@@ -380,7 +387,7 @@ class _LibraryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       !item.sliced
-                          ? 'Sin laminar · ${(item.format ?? '3mf').toUpperCase()} · tocá para laminar'
+                          ? 'Sin laminar · ${item.projectPlates.length > 1 ? '${item.projectPlates.length} placas' : (item.format ?? '3mf').toUpperCase()} · tocá para laminar'
                           : [
                               if (item.plates.length > 1) '${item.plates.length} placas',
                               if (plate?.predictionS != null) formatDuration((plate!.predictionS! / 60).round()),

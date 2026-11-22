@@ -114,7 +114,9 @@ class CatalogService:
                 items.append(ingest(self.store, lid, folder, filename, f"catalog:{source}", name=base[:120],
                                     extra_meta={"catalog": {"source": source, "id": item_id,
                                                             "url": detail.item.url, "image": detail.item.image,
-                                                            "author": detail.item.author}}))
+                                                            "author": detail.item.author,
+                                                            "profile": f.name if f.kind == "profile" else None,
+                                                            "plates": f.plates}}))
             except (AuthRequired, CatalogError, InvalidFile, httpx.HTTPError):
                 import shutil
                 shutil.rmtree(folder, ignore_errors=True)

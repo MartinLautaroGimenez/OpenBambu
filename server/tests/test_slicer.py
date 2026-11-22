@@ -99,7 +99,17 @@ FAKE_ORCA = textwrap.dedent('''\
     inputs = [a for i, a in enumerate(args) if not a.startswith("--") and args[i - 1] not in flags]
     import os
     pathlib.Path(os.environ["FAKE_ORCA_ARGS"]).write_text(
-        json.dumps({{"settings": settings, "fils": len(fils), "inputs": inputs}}))
+        json.dumps({{"settings": settings, "fils": len(fils), "inputs": inputs, "slice": opt("--slice"),
+                    "arrange": "--arrange" in args}}))
+    if inputs[0].endswith(".3mf"):
+        cfg = json.loads(zipfile.ZipFile(inputs[0]).read("Metadata/project_settings.config"))
+        bad = [k for k, v in cfg.items() if str(v).startswith("-")]
+        if bad:
+            print("Param values in 3mf/config error: ")
+            for k in bad:
+                print(f"{{k}}: {{cfg[k]}} not in range [0, 3.40282e+38]")
+            (out / "result.json").write_text(json.dumps({{"error_string": "Invalid parameter value(s)"}}))
+            sys.exit(1)
     if "FALLA" in inputs[0]:
         (out / "result.json").write_text(json.dumps({{"return_code": -50, "error_string": "Objeto fuera de la cama"}}))
         sys.exit(1)
@@ -178,3 +188,45 @@ def test_slice_errors(client):
     assert client.post(f"/api/library/{item['id']}/slice", json=bad, headers=H).status_code == 422
     bad = dict(body, overrides={"layer_height": 2})
     assert client.post(f"/api/library/{item['id']}/slice", json=bad, headers=H).status_code == 422
+
+
+def make_project(bad: dict) -> bytes:
+    import io
+    import zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("3D/3dmodel.model", "<model/>")
+        z.writestr("Metadata/project_settings.config", json.dumps({"filament_type": ["PLA"], **bad}))
+        z.writestr("Metadata/model_settings.config",
+                   '<config><plate><metadata key="plater_id" value="1"/><metadata key="plater_name" value="Cabeza"/>'
+                   '<model_instance/></plate><plate><metadata key="plater_id" value="2"/><model_instance/></plate>'
+                   '</config>')
+        z.writestr("Metadata/plate_2.png", b"\x89PNG")
+    return buf.getvalue()
+
+
+def test_slice_makerworld_project_plate(client, tmp_path):
+    data = make_project({"raft_first_layer_expansion": "-1", "brim_width": "-5"})
+    item = client.put("/api/library?filename=Raton A1 mini.3mf", content=data, headers=H).json()
+    assert [p["index"] for p in item["meta"]["project_plates"]] == [1, 2]
+    info = client.get(f"/api/library/{item['id']}/project", headers=H).json()
+    assert info["project_plates"][0]["name"] == "Cabeza" and info["project_plates"][1]["thumbnail"]
+    assert client.get(f"/api/library/{item['id']}/plates/2/thumbnail.png", headers=H).status_code == 200
+
+    # Sin perfil de calidad = ajustes del proyecto; placa 2; sin reordenar las placas
+    body = {"printer_id": "sim", "filaments": ["Bambu PLA Basic @BBL A1"], "plate": 2}
+    bad = dict(body, copies=2)
+    assert client.post(f"/api/library/{item['id']}/slice", json=bad, headers=H).status_code == 422
+    job = client.post(f"/api/library/{item['id']}/slice", json=body, headers=H).json()
+    done = wait_job(client, job["id"])
+    assert done["status"] == "done", done
+    assert any("ignorados" in line and "brim_width" in line for line in done["log_tail"])
+    args = json.loads((tmp_path / "args.json").read_text())
+    assert args["slice"] == "2" and not args["arrange"] and len(args["settings"]) == 1
+    result = client.get(f"/api/library/{done['result_id']}", headers=H).json()
+    assert result["name"] == "Raton A1 mini · placa 2"
+    assert result["meta"]["slice_settings"]["process"] == "Ajustes del proyecto"
+
+    # Un STL necesita perfil de calidad
+    stl = client.put("/api/library?filename=Pieza.stl", content=b"solid x", headers=H).json()
+    assert client.post(f"/api/library/{stl['id']}/slice", json=body, headers=H).status_code == 422

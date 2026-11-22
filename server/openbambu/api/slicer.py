@@ -65,10 +65,13 @@ class OverridesIn(BaseModel):
 
 class SliceIn(BaseModel):
     printer_id: str
-    process: str
+    # None = conservar los ajustes del proyecto .3mf (por ejemplo, un perfil de MakerWorld)
+    process: str | None = None
     filaments: list[str]
     overrides: OverridesIn = OverridesIn()
     copies: int = Field(1, ge=1, le=30)
+    # Placa del proyecto a laminar (0 = todas)
+    plate: int = Field(0, ge=0, le=100)
 
 
 @router.post("/library/{lid}/slice")
@@ -78,10 +81,34 @@ async def slice_item(lid: str, body: SliceIn, mgr: PrinterManager = Depends(mana
         raise HTTPException(404, "Archivo no encontrado")
     try:
         job = mgr.slicer.submit(item, body.printer_id, body.process, body.filaments,
-                                body.overrides.model_dump(exclude_none=True), body.copies)
+                                body.overrides.model_dump(exclude_none=True), body.copies, body.plate)
     except (SliceError, ProfileError) as e:
         raise HTTPException(422, str(e)) from e
     return job.to_dict()
+
+
+@router.get("/library/{lid}/project")
+async def project_info(lid: str, mgr: PrinterManager = Depends(manager)):
+    """Placas y filamentos de un proyecto .3mf sin laminar (con fotos de MakerWorld si las hay)."""
+    from ..library.threemf import InvalidFile, read_project
+
+    item = mgr.store.get_file(lid)
+    if not item:
+        raise HTTPException(404, "Archivo no encontrado")
+    if not item["filename"].lower().endswith(".3mf") or item["meta"].get("sliced"):
+        return {"project_plates": [], "project_filaments": [], "project_printer": None}
+    try:
+        info = read_project(mgr.store.file_path(item))
+    except InvalidFile as e:
+        raise HTTPException(422, str(e)) from e
+    remote = {p["index"]: p for p in (item["meta"].get("catalog") or {}).get("plates") or []}
+    for p in info["project_plates"]:
+        r = remote.get(p["index"]) or {}
+        p["image"] = r.get("thumbnail")
+        p["prediction_s"] = r.get("prediction_s")
+        p["weight_g"] = r.get("weight_g")
+        p["filaments"] = r.get("filaments") or []
+    return info
 
 
 @router.get("/slicer/jobs")

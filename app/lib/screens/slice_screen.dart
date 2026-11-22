@@ -8,6 +8,7 @@ import '../api/models.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/plate_card.dart';
 import 'print_screen.dart';
 
 /// Laminar un modelo (STL/OBJ/STEP/3MF) en el servidor con OrcaSlicer.
@@ -33,6 +34,13 @@ class _SliceScreenState extends State<SliceScreen> {
   bool _brim = true;
   int _copies = 1;
   bool _advanced = false;
+  // Proyecto .3mf (por ejemplo, un perfil de MakerWorld)
+  ProjectInfo? _project;
+  int _plate = 0;
+  bool _authorSettings = true;
+
+  bool get _isProject => widget.item.format == '3mf';
+  bool get _useAuthor => _isProject && _authorSettings;
 
   SliceJob? _job;
   Timer? _poll;
@@ -71,6 +79,14 @@ class _SliceScreenState extends State<SliceScreen> {
         return;
       }
       final p = await api.slicerProfiles(widget.printerId);
+      if (_isProject) {
+        try {
+          _project = await api.projectInfo(widget.item.id);
+          final plates = _project!.plates;
+          _plate = plates.length > 1 ? plates.first.index : 0;
+        } catch (_) {}
+      }
+      if (!mounted) return;
       setState(() {
         _profiles = p;
         _process = p.defaultProcess;
@@ -85,21 +101,18 @@ class _SliceScreenState extends State<SliceScreen> {
 
   Future<void> _slice() async {
     final api = context.read<AppState>().api;
-    if (api == null || _process == null || _filament == null) return;
+    if (api == null || (_process == null && !_useAuthor) || _filament == null) return;
     try {
       final job = await api.slice(
         widget.item.id,
         printerId: widget.printerId,
-        process: _process!,
+        process: _useAuthor ? null : _process!,
         filaments: [_filament!],
-        overrides: {
-          'infill': _infill,
-          'infill_pattern': _pattern,
-          'walls': _walls,
-          'supports': _supports,
-          'brim': _brim,
-        },
-        copies: _copies,
+        overrides: _useAuthor
+            ? {}
+            : {'infill': _infill, 'infill_pattern': _pattern, 'walls': _walls, 'supports': _supports, 'brim': _brim},
+        copies: _isProject ? 1 : _copies,
+        plate: _plate,
       );
       setState(() => _job = job);
       _poll = Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
@@ -157,9 +170,15 @@ class _SliceScreenState extends State<SliceScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                 child: FilledButton.icon(
-                  onPressed: _process != null && _filament != null ? _slice : null,
+                  onPressed: (_process != null || _useAuthor) && _filament != null ? _slice : null,
                   icon: const Icon(Icons.layers_rounded),
-                  label: Text(_copies > 1 ? 'Laminar $_copies copias' : 'Laminar'),
+                  label: Text(
+                    !_isProject && _copies > 1
+                        ? 'Laminar $_copies copias'
+                        : _plate > 0 && (_project?.plates.length ?? 0) > 1
+                        ? 'Laminar ${_project!.plates.firstWhere((x) => x.index == _plate, orElse: () => _project!.plates.first).label}'
+                        : 'Laminar',
+                  ),
                 ),
               ),
             ),
@@ -218,22 +237,68 @@ class _SliceScreenState extends State<SliceScreen> {
     for (final f in p.filaments) {
       filamentsByType.putIfAbsent(f.type, () => []).add(f);
     }
+    final plates = _project?.plates ?? [];
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       children: [
-        const SectionTitle('Calidad'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final pr in p.processes)
-              ChoiceChip(
-                label: Text(pr.label.replaceAll('mm ', ' mm · ')),
-                selected: pr.name == _process,
-                onSelected: (_) => setState(() => _process = pr.name),
+        if (plates.length > 1) ...[
+          SectionTitle('Placa · ${plates.length} en este proyecto'),
+          SizedBox(
+            height: 216,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final pl in plates)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: PlateCard(
+                      plate: pl,
+                      libraryId: widget.item.id,
+                      selected: _plate == pl.index,
+                      onTap: () => setState(() => _plate = pl.index),
+                    ),
+                  ),
+                _AllPlatesCard(selected: _plate == 0, onTap: () => setState(() => _plate = 0)),
+              ],
+            ),
+          ),
+        ] else if (plates.length == 1) ...[
+          const SectionTitle('Placa'),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: PlateCard(plate: plates.first, libraryId: widget.item.id, width: 180),
+          ),
+        ],
+        if (_isProject) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: SwitchListTile(
+              title: const Text('Usar los ajustes del autor', style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                _authorSettings
+                    ? 'Capa, paredes, relleno y soportes como los preparó el autor del perfil'
+                    : 'Elegís calidad, relleno y soportes acá',
               ),
-          ],
-        ),
+              value: _authorSettings,
+              onChanged: (v) => setState(() => _authorSettings = v),
+            ),
+          ),
+        ],
+        if (!_useAuthor) ...[
+          const SectionTitle('Calidad'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final pr in p.processes)
+                ChoiceChip(
+                  label: Text(pr.label.replaceAll('mm ', ' mm · ')),
+                  selected: pr.name == _process,
+                  onSelected: (_) => setState(() => _process = pr.name),
+                ),
+            ],
+          ),
+        ],
         const SectionTitle('Filamento'),
         if (p.trayFilaments.isNotEmpty) ...[
           Text('Cargado en la impresora', style: t.textTheme.labelMedium),
@@ -273,113 +338,172 @@ class _SliceScreenState extends State<SliceScreen> {
             _tray = null;
           }),
         ),
-        const SectionTitle('Relleno'),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    const Text('Densidad', style: TextStyle(fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    Text('$_infill %', style: const TextStyle(fontWeight: FontWeight.w800)),
-                  ],
-                ),
-                Slider(
-                  value: _infill.toDouble(),
-                  max: 100,
-                  divisions: 20,
-                  onChanged: (v) => setState(() => _infill = v.round()),
-                ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final e in _patterns.entries)
-                      ChoiceChip(
-                        label: Text(e.value),
-                        selected: _pattern == e.key,
-                        onSelected: (_) => setState(() => _pattern = e.key),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
+        if (_isProject && (_project?.filaments.length ?? 0) > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'El proyecto usa ${_project!.filaments.length} filamentos; al imprimir asignás cada color a una '
+              'bandeja del AMS.',
+              style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
             ),
           ),
-        ),
-        const SectionTitle('Soportes y adherencia'),
-        SegmentedButton<String>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(value: 'none', label: Text('Sin soportes')),
-            ButtonSegment(value: 'tree', label: Text('Árbol')),
-            ButtonSegment(value: 'normal', label: Text('Normales')),
-          ],
-          selected: {_supports},
-          onSelectionChanged: (v) => setState(() => _supports = v.first),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: SwitchListTile(
-            title: const Text('Brim', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Borde extra para que la pieza no se despegue'),
-            value: _brim,
-            onChanged: (v) => setState(() => _brim = v),
-          ),
-        ),
-        const SectionTitle('Copias'),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                const Expanded(child: Text('Se acomodan todas en la misma placa')),
-                IconButton.filledTonal(
-                  onPressed: _copies > 1 ? () => setState(() => _copies--) : null,
-                  icon: const Icon(Icons.remove_rounded),
-                ),
-                SizedBox(
-                  width: 40,
-                  child: Text(
-                    '$_copies',
-                    textAlign: TextAlign.center,
-                    style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        if (!_useAuthor) ...[
+          const SectionTitle('Relleno'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      const Text('Densidad', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Text('$_infill %', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    ],
                   ),
+                  Slider(
+                    value: _infill.toDouble(),
+                    max: 100,
+                    divisions: 20,
+                    onChanged: (v) => setState(() => _infill = v.round()),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final e in _patterns.entries)
+                        ChoiceChip(
+                          label: Text(e.value),
+                          selected: _pattern == e.key,
+                          onSelected: (_) => setState(() => _pattern = e.key),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+          const SectionTitle('Soportes y adherencia'),
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 'none', label: Text('Sin soportes')),
+              ButtonSegment(value: 'tree', label: Text('Árbol')),
+              ButtonSegment(value: 'normal', label: Text('Normales')),
+            ],
+            selected: {_supports},
+            onSelectionChanged: (v) => setState(() => _supports = v.first),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: SwitchListTile(
+              title: const Text('Brim', style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: const Text('Borde extra para que la pieza no se despegue'),
+              value: _brim,
+              onChanged: (v) => setState(() => _brim = v),
+            ),
+          ),
+        ],
+        if (!_isProject) ...[
+          const SectionTitle('Copias'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Expanded(child: Text('Se acomodan todas en la misma placa')),
+                  IconButton.filledTonal(
+                    onPressed: _copies > 1 ? () => setState(() => _copies--) : null,
+                    icon: const Icon(Icons.remove_rounded),
+                  ),
+                  SizedBox(
+                    width: 40,
+                    child: Text(
+                      '$_copies',
+                      textAlign: TextAlign.center,
+                      style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    onPressed: _copies < 30 ? () => setState(() => _copies++) : null,
+                    icon: const Icon(Icons.add_rounded),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+        if (!_useAuthor) ...[
+          const SizedBox(height: 8),
+          ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+            title: const Text('Avanzado'),
+            initiallyExpanded: _advanced,
+            onExpansionChanged: (v) => _advanced = v,
+            children: [
+              Row(
+                children: [
+                  const Expanded(child: Text('Paredes (perímetros)')),
+                  IconButton(
+                    onPressed: _walls > 1 ? () => setState(() => _walls--) : null,
+                    icon: const Icon(Icons.remove_rounded),
+                  ),
+                  Text('$_walls', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  IconButton(
+                    onPressed: _walls < 10 ? () => setState(() => _walls++) : null,
+                    icon: const Icon(Icons.add_rounded),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Opción "todas las placas".
+class _AllPlatesCard extends StatelessWidget {
+  final bool selected;
+  final VoidCallback onTap;
+  const _AllPlatesCard({required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return SizedBox(
+      width: 140,
+      child: Material(
+        color: selected ? AppColors.accent.withValues(alpha: 0.12) : t.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: selected ? AppColors.accent : Colors.transparent, width: 2),
+            ),
+            padding: const EdgeInsets.all(12),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.layers_rounded, size: 40),
+                SizedBox(height: 10),
+                Text(
+                  'Todas las placas',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.w700),
                 ),
-                IconButton.filledTonal(
-                  onPressed: _copies < 30 ? () => setState(() => _copies++) : null,
-                  icon: const Icon(Icons.add_rounded),
-                ),
+                SizedBox(height: 4),
+                Text('Después elegís cuál imprimir', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 8),
-        ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-          title: const Text('Avanzado'),
-          initiallyExpanded: _advanced,
-          onExpansionChanged: (v) => _advanced = v,
-          children: [
-            Row(
-              children: [
-                const Expanded(child: Text('Paredes (perímetros)')),
-                IconButton(
-                  onPressed: _walls > 1 ? () => setState(() => _walls--) : null,
-                  icon: const Icon(Icons.remove_rounded),
-                ),
-                Text('$_walls', style: const TextStyle(fontWeight: FontWeight.w800)),
-                IconButton(
-                  onPressed: _walls < 10 ? () => setState(() => _walls++) : null,
-                  icon: const Icon(Icons.add_rounded),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }

@@ -18,7 +18,9 @@ import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from ..library.threemf import InvalidFile, read_3mf
+import re
+
+from ..library.threemf import InvalidFile, read_3mf, sanitize_project
 from .profiles import MACHINE_FOR_MODEL, ProfileError, apply_overrides, get_library, write_profile
 
 log = logging.getLogger(__name__)
@@ -67,12 +69,17 @@ class SliceJob:
 async def run_orca(
     inputs: list[Path],
     machine: dict,
-    process: dict,
+    process: dict | None,
     filaments: list[dict],
     workdir: Path,
     on_line=None,
+    plate: int = 0,
+    arrange: bool = True,
 ) -> Path:
-    """Lamina ``inputs`` y devuelve la ruta del .gcode.3mf generado."""
+    """Lamina ``inputs`` y devuelve la ruta del .gcode.3mf generado.
+
+    ``plate`` 0 lamina todas las placas; ``process`` None conserva los ajustes del proyecto .3mf.
+    """
     binary = orca_binary()
     if not binary:
         raise SliceError("OrcaSlicer no está instalado en el servidor")
@@ -80,15 +87,18 @@ async def run_orca(
     out = workdir / "out"
     out.mkdir(exist_ok=True)
     m = write_profile(machine, workdir / "machine.json")
-    p = write_profile(process, workdir / "process.json", " (OpenBambu)")
+    settings = [str(m)]
+    if process is not None:
+        settings.append(str(write_profile(process, workdir / "process.json", " (OpenBambu)")))
     fils = [write_profile(f, workdir / f"filament_{i}.json") for i, f in enumerate(filaments)]
     result = out / "result.gcode.3mf"
+    result.unlink(missing_ok=True)
 
     cmd = [
         binary,
-        "--slice", "0",
-        "--arrange", "1",
-        "--load-settings", f"{m};{p}",
+        "--slice", str(plate),
+        *(["--arrange", "1"] if arrange else []),
+        "--load-settings", ";".join(settings),
         "--load-filaments", ";".join(str(f) for f in fils),
         "--outputdir", str(out),
         "--export-3mf", result.name,
@@ -130,6 +140,57 @@ async def run_orca(
     return result
 
 
+BAD_PARAM = re.compile(r"^\s*([a-z_0-9]+): .*not in range")
+
+
+async def slice_file(
+    src: Path,
+    machine: dict,
+    process: dict | None,
+    filaments: list[dict],
+    work: Path,
+    plate: int = 0,
+    copies: int = 1,
+    on_line=None,
+) -> Path:
+    """Lamina un modelo o un proyecto .3mf.
+
+    Los proyectos (.3mf de Bambu Studio / MakerWorld) conservan la distribución de sus placas;
+    se limpian los ajustes que OrcaSlicer rechaza y, si igual falla por un valor fuera de
+    rango, se quita ese ajuste y se reintenta.
+    """
+    is_project = src.name.lower().endswith(".3mf")
+    if not is_project:
+        return await run_orca([src] * max(1, copies), machine, process, filaments, work, on_line)
+    if copies > 1:
+        raise SliceError("Las copias se arman en la placa del proyecto; elegí 1 copia")
+
+    drop: set[str] = set()
+    lines: list[str] = []
+
+    def collect(line: str) -> None:
+        lines.append(line)
+        if on_line:
+            on_line(line)
+
+    for attempt in range(4):
+        work.mkdir(parents=True, exist_ok=True)
+        clean = work / f"proyecto_{attempt}.3mf"
+        removed = sanitize_project(src, clean, drop)
+        if removed:
+            collect(f"OpenBambu: ajustes del proyecto ignorados: {', '.join(sorted(removed))}")
+        lines.clear()
+        try:
+            return await run_orca([clean], machine, process, filaments, work / f"run{attempt}", collect,
+                                  plate=plate, arrange=False)
+        except SliceError:
+            bad = {m[1] for line in lines if (m := BAD_PARAM.match(line))} - drop
+            if not bad:
+                raise
+            drop |= bad
+    raise SliceError("El proyecto tiene ajustes que OrcaSlicer no acepta")
+
+
 class SliceManager:
     """Ejecuta los laminados de a uno (la Raspberry Pi tiene poca memoria)."""
 
@@ -151,26 +212,37 @@ class SliceManager:
             raise ProfileError("Impresora no encontrada")
         return MACHINE_FOR_MODEL[p.cfg.model]
 
-    def submit(self, item: dict, printer_id: str, process: str, filaments: list[str],
-               overrides: dict, copies: int) -> SliceJob:
+    def submit(self, item: dict, printer_id: str, process: str | None, filaments: list[str],
+               overrides: dict, copies: int, plate: int = 0) -> SliceJob:
         lib = get_library()
         if lib is None or not orca_binary():
             raise SliceError("OrcaSlicer no está instalado en el servidor")
         machine_name = self.machine_name(printer_id)
         # Validar todo antes de encolar
         machine = lib.resolve(machine_name)
-        proc = apply_overrides(lib.resolve(process), overrides)
+        # process None = usar los ajustes del proyecto .3mf (capa, soportes, relleno del autor)
+        proc = apply_overrides(lib.resolve(process), overrides) if process else None
         if not filaments:
             raise ProfileError("Elegí al menos un filamento")
         fils = [lib.resolve(f) for f in filaments]
         src = self.store.file_path(item)
         if not src.name.lower().endswith(MESH_EXT):
             raise SliceError("Formato no soportado para laminar")
+        is_project = src.name.lower().endswith(".3mf")
+        if proc is None and not is_project:
+            raise ProfileError("Elegí un perfil de calidad")
+        if is_project and copies > 1:
+            raise SliceError("Las copias se arman en la placa del proyecto; elegí 1 copia")
 
         name = item["name"]
+        if plate:
+            plates = item["meta"].get("project_plates") or []
+            if len(plates) > 1:
+                pl = next((p for p in plates if p["index"] == plate), None)
+                name = f"{name} · {pl['name'] if pl and pl.get('name') else f'placa {plate}'}"
         job = SliceJob(secrets.token_hex(6), item["id"], name, printer_id)
         self.jobs[job.id] = job
-        t = asyncio.create_task(self._run(job, src, machine, proc, fils, copies, overrides))
+        t = asyncio.create_task(self._run(job, src, machine, proc, fils, copies, overrides, plate))
         self._tasks.add(t)
         t.add_done_callback(self._tasks.discard)
         self._changed()
@@ -181,18 +253,17 @@ class SliceManager:
             with contextlib.suppress(Exception):
                 fn()
 
-    async def _run(self, job: SliceJob, src: Path, machine, process, filaments, copies, overrides) -> None:
+    async def _run(self, job: SliceJob, src: Path, machine, process, filaments, copies, overrides,
+                   plate: int = 0) -> None:
         async with self._lock:
             job.status, job.started = "slicing", time.time()
             self._changed()
             work = Path(tempfile.mkdtemp(prefix="ob-slice-"))
             try:
-                inputs = [src] * max(1, copies)
-
                 def on_line(line: str) -> None:
                     job.log_tail = (job.log_tail + [line])[-15:]
 
-                result = await run_orca(inputs, machine, process, filaments, work, on_line)
+                result = await slice_file(src, machine, process, filaments, work, plate, copies, on_line)
                 try:
                     meta = read_3mf(result)
                 except InvalidFile as e:
@@ -204,7 +275,8 @@ class SliceManager:
                 filename = f"{job.name}{suffix}.gcode.3mf"
                 shutil.move(str(result), folder / filename)
                 meta["slice_settings"] = {
-                    "process": process.get("name"),
+                    "process": process.get("name") if process else "Ajustes del proyecto",
+                    "plate": plate or None,
                     "filaments": [f.get("name") for f in filaments],
                     "overrides": overrides,
                     "copies": copies,

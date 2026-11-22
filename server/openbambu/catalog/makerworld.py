@@ -69,16 +69,21 @@ class MakerWorld(Provider):
             except ValueError:
                 fil = []
             title = inst.get("titleTranslated") or inst.get("title") or f"Perfil {inst.get('id')}"
+            info = (inst.get("extention") or {}).get("modelInfo") or {}
+            compat = info.get("compatibility") or {}
             files.append(CatalogFile(
                 id=str(inst["id"]),
                 name=title,
                 kind="profile",
-                printer=_printer_from_title(title),
+                printer=compat.get("devProductName") or _printer_from_title(title),
                 prediction_s=_int(inst.get("prediction")),
                 weight_g=_float(inst.get("weight")),
                 filaments=[{"type": f.get("type"), "color": f.get("color"), "used_g": _float(f.get("usedG"))}
                            for f in fil],
                 image=inst.get("cover"),
+                plates=[_plate(pl) for pl in info.get("plates") or []],
+                pictures=[x.get("url") for x in inst.get("pictures") or [] if x.get("url")],
+                description=inst.get("summaryTranslated") or inst.get("summary") or "",
             ))
         pics = [p.get("url") for p in (d.get("designExtension") or {}).get("design_pictures") or [] if p.get("url")]
         return CatalogDetail(
@@ -105,6 +110,19 @@ class MakerWorld(Provider):
         path = dest / re.sub(r"[^\w.\- ()]", "_", name)
         await self._fetch_to(url, path)
         return path
+
+
+def _plate(pl: dict) -> dict:
+    thumb = (pl.get("thumbnail") or {}).get("url") or (pl.get("top_picture") or {}).get("url")
+    return {
+        "index": _int(pl.get("index")) or 1,
+        "name": pl.get("name") or "",
+        "thumbnail": thumb,
+        "prediction_s": _int(pl.get("prediction")),
+        "weight_g": _float(pl.get("weight")),
+        "filaments": [{"id": _int(f.get("id")), "type": f.get("type"), "color": (f.get("color") or "")[:7] or None,
+                       "used_g": _float(f.get("usedG"))} for f in pl.get("filaments") or []],
+    }
 
 
 PRINTERS = ["A1 mini", "A1", "P1S", "P1P", "X1E", "X1 Carbon", "X1C", "H2D", "H2S", "P2S"]

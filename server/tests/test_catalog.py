@@ -46,7 +46,16 @@ def handler(request: httpx.Request) -> httpx.Response:
             "id": 77, "title": "Benchy", "coverUrl": "https://mw/c.jpg", "summary": "Barco",
             "designExtension": {"design_pictures": [{"url": "https://mw/1.jpg"}]},
             "instances": [{"id": 500, "title": "15min, PLA, A1", "prediction": "900", "weight": "12",
-                           "instanceFilaments": '[{"type": "PLA", "color": "#FFFFFF", "usedG": "12"}]'}]})
+                           "instanceFilaments": '[{"type": "PLA", "color": "#FFFFFF", "usedG": "12"}]',
+                           "pictures": [{"url": "https://mw/p1.jpg"}],
+                           "extention": {"modelInfo": {
+                               "compatibility": {"devProductName": "A1"},
+                               "plates": [{"index": 1, "name": "Casco",
+                                           "thumbnail": {"url": "https://mw/plate_1.png"},
+                                           "prediction": 600, "weight": 8,
+                                           "filaments": [{"id": "2", "type": "PLA", "color": "#FF0000FF",
+                                                          "usedG": "8"}]},
+                                          {"index": 2, "thumbnail": {"url": "https://mw/plate_2.png"}}]}}}]})
     if "makerworld.com/api/v1/design-service/instance/500/f3mf" in url:
         if "token=secreto" not in request.headers.get("cookie", ""):
             return httpx.Response(403)
@@ -92,6 +101,10 @@ def test_makerworld_profiles_and_auth(service):
     d = run(s.detail("makerworld", "77"))
     f = d["files"][0]
     assert f["kind"] == "profile" and f["printer"] == "A1" and f["prediction_s"] == 900 and f["weight_g"] == 12
+    assert f["pictures"] == ["https://mw/p1.jpg"] and len(f["plates"]) == 2
+    assert f["plates"][0] == {"index": 1, "name": "Casco", "thumbnail": "https://mw/plate_1.png",
+                              "prediction_s": 600, "weight_g": 8.0,
+                              "filaments": [{"id": 2, "type": "PLA", "color": "#FF0000", "used_g": 8.0}]}
     assert d["downloadable"] is False and d["note"]
     with pytest.raises(AuthRequired):
         run(s.download("makerworld", "77", ["500"]))
