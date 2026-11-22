@@ -75,6 +75,7 @@ async def run_orca(
     on_line=None,
     plate: int = 0,
     arrange: bool = True,
+    allow_newer: bool = False,
 ) -> Path:
     """Lamina ``inputs`` y devuelve la ruta del .gcode.3mf generado.
 
@@ -98,6 +99,8 @@ async def run_orca(
         binary,
         "--slice", str(plate),
         *(["--arrange", "1"] if arrange else []),
+        # Proyectos guardados con un Bambu Studio más nuevo que este OrcaSlicer
+        *(["--allow-newer-file"] if allow_newer else []),
         "--load-settings", ";".join(settings),
         "--load-filaments", ";".join(str(f) for f in fils),
         "--outputdir", str(out),
@@ -136,8 +139,32 @@ async def run_orca(
         info = json.loads((out / "result.json").read_text())
     if proc.returncode != 0 or not result.exists():
         msg = info.get("error_string") or info.get("message") or f"OrcaSlicer terminó con código {proc.returncode}"
-        raise SliceError(msg)
+        raise SliceError(translate_error(msg))
     return result
+
+
+ERRORS_ES = {
+    "Unsupported 3MF version": "El proyecto se guardó con una versión de Bambu Studio que OrcaSlicer no reconoce.",
+    "Invalid parameter value(s) included in the 3mf": "El proyecto tiene ajustes con valores que OrcaSlicer no acepta.",
+    "The selected printer is not compatible with the 3mf": "Este proyecto no se puede laminar para tu impresora.",
+    "not compatible with the process preset in the 3mf":
+        "Los ajustes del autor no son compatibles con tu impresora: desactivá «Usar los ajustes del autor».",
+    "bed size is smaller": "La cama de tu impresora es más chica que la del proyecto.",
+    "The plate has nothing to slice": "La placa está vacía o las piezas quedan fuera de la cama.",
+    "Some objects are located over the boundary": "Hay piezas fuera de los bordes de la cama.",
+    "Out of memory": "El servidor se quedó sin memoria laminando. Probá con una placa por vez.",
+    "Failed slicing the model": "OrcaSlicer no pudo laminar el modelo.",
+    "Objects conflicts were detected": "Hay piezas que se superponen.",
+    "Object conflicts were detected": "Hay piezas que se superponen.",
+    "Filaments are not compatible with the plate type": "El filamento no es compatible con el tipo de cama del proyecto.",
+}
+
+
+def translate_error(msg: str) -> str:
+    for en, es in ERRORS_ES.items():
+        if en.lower() in msg.lower():
+            return f"{es} ({msg})"
+    return msg
 
 
 BAD_PARAM = re.compile(r"^\s*([a-z_0-9]+): .*not in range")
@@ -176,13 +203,13 @@ async def slice_file(
     for attempt in range(4):
         work.mkdir(parents=True, exist_ok=True)
         clean = work / f"proyecto_{attempt}.3mf"
-        removed = sanitize_project(src, clean, drop)
+        removed = sanitize_project(src, clean, drop, any_printer=process is None)
         if removed:
             collect(f"OpenBambu: ajustes del proyecto ignorados: {', '.join(sorted(removed))}")
         lines.clear()
         try:
             return await run_orca([clean], machine, process, filaments, work / f"run{attempt}", collect,
-                                  plate=plate, arrange=False)
+                                  plate=plate, arrange=False, allow_newer=True)
         except SliceError:
             bad = {m[1] for line in lines if (m := BAD_PARAM.match(line))} - drop
             if not bad:

@@ -175,9 +175,11 @@ def read_project(path: Path) -> dict:
             "project_printer": printer}
 
 
-def sanitize_project(src: Path, dest: Path, drop: set[str] | None = None) -> list[str]:
+def sanitize_project(src: Path, dest: Path, drop: set[str] | None = None, any_printer: bool = False) -> list[str]:
     """Copia el proyecto quitando ajustes que OrcaSlicer rechaza (valores de Bambu Studio fuera de rango).
 
+    Con ``any_printer`` el proceso del proyecto queda compatible con cualquier impresora (un perfil
+    hecho para la A1 mini se puede laminar para la A1 con los ajustes del autor).
     Devuelve las claves quitadas.
     """
     import json
@@ -199,6 +201,15 @@ def sanitize_project(src: Path, dest: Path, drop: set[str] | None = None) -> lis
                         if k in drop or (k in NEGATIVE_AUTO and str(v).strip() in ("-1", "-1.0")):
                             cfg.pop(k)
                             removed.append(k)
+                    if any_printer:
+                        for k in ("print_compatible_printers", "compatible_printers"):
+                            if k in cfg:
+                                cfg[k] = []
+                        if "compatible_printers_condition" in cfg:
+                            cfg["compatible_printers_condition"] = ""
+                        group = cfg.get("compatible_machine_expression_group")
+                        if isinstance(group, list) and group:
+                            group[0] = ""
                     data = json.dumps(cfg, indent=4).encode()
             zout.writestr(info, data)
     return removed

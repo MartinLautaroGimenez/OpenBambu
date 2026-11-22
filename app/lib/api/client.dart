@@ -160,6 +160,12 @@ class ApiClient {
   // ---- laminado -------------------------------------------------------
   Future<bool> slicerAvailable() async => ((await _req('GET', '/slicer')) as Map)['available'] == true;
 
+  /// Estado del laminador: disponible y funciones que soporta el servidor.
+  Future<({bool available, Set<String> features})> slicerStatus() async {
+    final m = (await _req('GET', '/slicer')) as Map;
+    return (available: m['available'] == true, features: {for (final f in (m['features'] as List? ?? [])) '$f'});
+  }
+
   Future<SlicerProfiles> slicerProfiles(String printerId) async =>
       SlicerProfiles.fromJson(await _req('GET', '/slicer/profiles', query: {'printer_id': printerId}));
 

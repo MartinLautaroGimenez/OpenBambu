@@ -39,8 +39,11 @@ class _SliceScreenState extends State<SliceScreen> {
   int _plate = 0;
   bool _authorSettings = true;
 
+  // Servidor viejo: no sabe laminar placas ni usar los ajustes del autor
+  bool _oldServer = false;
+
   bool get _isProject => widget.item.format == '3mf';
-  bool get _useAuthor => _isProject && _authorSettings;
+  bool get _useAuthor => _isProject && _authorSettings && !_oldServer;
 
   SliceJob? _job;
   Timer? _poll;
@@ -70,7 +73,9 @@ class _SliceScreenState extends State<SliceScreen> {
     final api = context.read<AppState>().api;
     if (api == null) return;
     try {
-      if (!await api.slicerAvailable()) {
+      final status = await api.slicerStatus();
+      _oldServer = !status.features.contains('author_settings');
+      if (!status.available) {
         setState(
           () => _error =
               'El laminador no está instalado en el servidor. Actualizá el servidor (volvé a '
@@ -79,7 +84,7 @@ class _SliceScreenState extends State<SliceScreen> {
         return;
       }
       final p = await api.slicerProfiles(widget.printerId);
-      if (_isProject) {
+      if (_isProject && !_oldServer) {
         try {
           _project = await api.projectInfo(widget.item.id);
           final plates = _project!.plates;
@@ -111,8 +116,8 @@ class _SliceScreenState extends State<SliceScreen> {
         overrides: _useAuthor
             ? {}
             : {'infill': _infill, 'infill_pattern': _pattern, 'walls': _walls, 'supports': _supports, 'brim': _brim},
-        copies: _isProject ? 1 : _copies,
-        plate: _plate,
+        copies: _isProject && !_oldServer ? 1 : _copies,
+        plate: _oldServer ? 0 : _plate,
       );
       setState(() => _job = job);
       _poll = Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
@@ -241,6 +246,30 @@ class _SliceScreenState extends State<SliceScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
       children: [
+        if (_oldServer && _isProject)
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.system_update_rounded, color: AppColors.warning),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'El servidor está desactualizado: no puede elegir placas ni usar los ajustes del autor, y '
+                    'los perfiles de MakerWorld pueden fallar al laminar. Volvé a correr el instalador en la '
+                    'Raspberry Pi para actualizarlo.',
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (plates.length > 1) ...[
           SectionTitle('Placa · ${plates.length} en este proyecto'),
           SizedBox(
@@ -269,7 +298,7 @@ class _SliceScreenState extends State<SliceScreen> {
             child: PlateCard(plate: plates.first, libraryId: widget.item.id, width: 180),
           ),
         ],
-        if (_isProject) ...[
+        if (_isProject && !_oldServer) ...[
           const SizedBox(height: 12),
           Card(
             child: SwitchListTile(
@@ -405,7 +434,7 @@ class _SliceScreenState extends State<SliceScreen> {
             ),
           ),
         ],
-        if (!_isProject) ...[
+        if (!_isProject || _oldServer) ...[
           const SectionTitle('Copias'),
           Card(
             child: Padding(

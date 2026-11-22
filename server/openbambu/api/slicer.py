@@ -15,7 +15,9 @@ router = APIRouter(prefix="/api", dependencies=[Depends(auth)])
 
 @router.get("/slicer")
 async def slicer_status(mgr: PrinterManager = Depends(manager)):
-    return {"available": mgr.slicer.available(), "engine": "OrcaSlicer", "version": orca_version()}
+    return {"available": mgr.slicer.available(), "engine": "OrcaSlicer", "version": orca_version(),
+            # La app usa esto para saber si el servidor sabe laminar placas de proyectos
+            "features": ["project_plates", "author_settings"]}
 
 
 @router.get("/slicer/profiles")

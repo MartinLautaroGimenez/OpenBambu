@@ -100,7 +100,7 @@ FAKE_ORCA = textwrap.dedent('''\
     import os
     pathlib.Path(os.environ["FAKE_ORCA_ARGS"]).write_text(
         json.dumps({{"settings": settings, "fils": len(fils), "inputs": inputs, "slice": opt("--slice"),
-                    "arrange": "--arrange" in args}}))
+                    "arrange": "--arrange" in args, "newer": "--allow-newer-file" in args}}))
     if inputs[0].endswith(".3mf"):
         cfg = json.loads(zipfile.ZipFile(inputs[0]).read("Metadata/project_settings.config"))
         bad = [k for k, v in cfg.items() if str(v).startswith("-")]
@@ -222,7 +222,7 @@ def test_slice_makerworld_project_plate(client, tmp_path):
     assert done["status"] == "done", done
     assert any("ignorados" in line and "brim_width" in line for line in done["log_tail"])
     args = json.loads((tmp_path / "args.json").read_text())
-    assert args["slice"] == "2" and not args["arrange"] and len(args["settings"]) == 1
+    assert args["slice"] == "2" and not args["arrange"] and len(args["settings"]) == 1 and args["newer"]
     result = client.get(f"/api/library/{done['result_id']}", headers=H).json()
     assert result["name"] == "Raton A1 mini · placa 2"
     assert result["meta"]["slice_settings"]["process"] == "Ajustes del proyecto"
@@ -230,3 +230,19 @@ def test_slice_makerworld_project_plate(client, tmp_path):
     # Un STL necesita perfil de calidad
     stl = client.put("/api/library?filename=Pieza.stl", content=b"solid x", headers=H).json()
     assert client.post(f"/api/library/{stl['id']}/slice", json=body, headers=H).status_code == 422
+
+
+def test_sanitize_any_printer_and_errors(tmp_path):
+    import zipfile
+
+    from openbambu.library.threemf import sanitize_project
+    from openbambu.slicer.orca import translate_error
+
+    src = tmp_path / "p.3mf"
+    src.write_bytes(make_project({"print_compatible_printers": ["Bambu Lab A1 mini 0.4 nozzle"],
+                                  "compatible_machine_expression_group": ["printer_model==\"A1 mini\"", "", ""]}))
+    sanitize_project(src, tmp_path / "c.3mf", any_printer=True)
+    cfg = json.loads(zipfile.ZipFile(tmp_path / "c.3mf").read("Metadata/project_settings.config"))
+    assert cfg["print_compatible_printers"] == [] and cfg["compatible_machine_expression_group"][0] == ""
+    assert translate_error("Unsupported 3MF version. Please ...").startswith("El proyecto se guardó")
+    assert translate_error("otra cosa") == "otra cosa"

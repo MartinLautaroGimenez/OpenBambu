@@ -127,6 +127,34 @@ async def main(model: str = "A1") -> int:
                   f"{[p['index'] for p in pm['plates']]}, {pm['plates'][0]['weight_g']} g")
             if not pm["sliced"]:
                 return 1
+
+        if model == "A1":
+            # Perfil de MakerWorld hecho para la A1 mini con un Bambu Studio más nuevo, laminado para la A1
+            mini = MACHINE_FOR_MODEL["A1MINI"]
+            mini_proc = next(p["name"] for p in lib.processes(mini) if p["name"].startswith("0.20mm Standard"))
+            mres = await run_orca([stl], lib.resolve(mini), lib.resolve(mini_proc),
+                                  [lib.resolve(lib.default_filament(mini, "PLA"))], work / "mini")
+            foreign = work / "mini_nuevo.3mf"
+            with zipfile.ZipFile(mres) as zin, zipfile.ZipFile(foreign, "w", zipfile.ZIP_DEFLATED) as zout:
+                for info in zin.infolist():
+                    if re.match(r"Metadata/plate_\d+\.gcode", info.filename) or info.filename.endswith(".md5") \
+                            or info.filename == "Metadata/slice_info.config":
+                        continue
+                    data = zin.read(info.filename)
+                    if info.filename == "3D/3dmodel.model":
+                        text = data.decode()
+                        text = re.sub(r'(<metadata name="Application">)[^<]*', r"\1BambuStudio-02.09.00.00", text)
+                        text = re.sub(r'<metadata name="OrcaSlicer">[^<]*</metadata>', "", text)
+                        data = text.encode()
+                    zout.writestr(info, data)
+            t0 = time.time()
+            res = await slice_file(foreign, lib.resolve(machine), None, [lib.resolve(filament)], work / "foreign",
+                                   plate=1, on_line=lambda line: print("  orca:", line))
+            pm = read_3mf(res)
+            print(f"Proyecto A1 mini (Bambu Studio 2.9) en A1 con ajustes del autor: OK en {time.time() - t0:.0f} s, "
+                  f"{pm['plates'][0]['weight_g']} g")
+            if not pm["sliced"]:
+                return 1
         return 0
 
 
