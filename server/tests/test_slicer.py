@@ -246,3 +246,16 @@ def test_sanitize_any_printer_and_errors(tmp_path):
     assert cfg["print_compatible_printers"] == [] and cfg["compatible_machine_expression_group"][0] == ""
     assert translate_error("Unsupported 3MF version. Please ...").startswith("El proyecto se guardó")
     assert translate_error("otra cosa") == "otra cosa"
+
+
+def test_slice_name_with_slash(client):
+    data = make_project({})
+    item = client.put("/api/library?filename=Raton.3mf", content=data, headers=H).json()
+    mgr = client.app.state.manager
+    mgr.store._q("UPDATE library SET name=? WHERE id=?", ("Ratón chef / NO AMS", item["id"]))
+    body = {"printer_id": "sim", "filaments": ["Bambu PLA Basic @BBL A1"], "plate": 1}
+    job = client.post(f"/api/library/{item['id']}/slice", json=body, headers=H).json()
+    done = wait_job(client, job["id"])
+    assert done["status"] == "done", done
+    result = client.get(f"/api/library/{done['result_id']}", headers=H).json()
+    assert result["name"] == "Ratón chef / NO AMS · Cabeza" and "/" not in result["filename"]

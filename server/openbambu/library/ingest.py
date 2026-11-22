@@ -13,7 +13,7 @@ UPLOAD_EXT = (".3mf", ".stl", ".obj", ".step", ".stp")
 
 
 def safe_name(name: str) -> str:
-    name = Path(name).name.strip()
+    name = Path(name.replace("\\", "/")).name.strip()
     name = re.sub(r"[^\w.\- ()áéíóúñÁÉÍÓÚÑ]", "_", name)
     return name or "archivo.3mf"
 

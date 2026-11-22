@@ -20,6 +20,7 @@ from pathlib import Path
 
 import re
 
+from ..library.ingest import safe_name
 from ..library.threemf import InvalidFile, read_3mf, sanitize_project
 from .profiles import MACHINE_FOR_MODEL, ProfileError, apply_overrides, get_library, write_profile
 
@@ -299,7 +300,8 @@ class SliceManager:
                     raise SliceError("OrcaSlicer no generó G-code")
                 lid, folder = self.store.new_file_dir()
                 suffix = f" ×{copies}" if copies > 1 else ""
-                filename = f"{job.name}{suffix}.gcode.3mf"
+                # El nombre del modelo puede traer "/" (p. ej. "Ratón chef / NO AMS"): no es una carpeta
+                filename = safe_name(f"{job.name}{suffix}".replace("/", "-").replace("\\", "-") + ".gcode.3mf")
                 shutil.move(str(result), folder / filename)
                 meta["slice_settings"] = {
                     "process": process.get("name") if process else "Ajustes del proyecto",
