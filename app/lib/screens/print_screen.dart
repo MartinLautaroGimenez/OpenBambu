@@ -348,7 +348,7 @@ class _PrintScreenState extends State<PrintScreen> {
                     child: Text(
                       '$_copies',
                       textAlign: TextAlign.center,
-                      style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                      style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                   IconButton.filledTonal(
@@ -506,7 +506,7 @@ class _FilamentRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(filament.type, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(filament.type, style: const TextStyle(fontWeight: FontWeight.w700)),
                     Text(
                       [
                         'Filamento ${filament.id}',

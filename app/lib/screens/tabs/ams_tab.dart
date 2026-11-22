@@ -159,7 +159,7 @@ class AmsTab extends StatelessWidget {
           children: [
             ListTile(
               leading: _SpoolDot(color: parseHex(t.color), loaded: t.loaded, size: 44),
-              title: Text(name, style: const TextStyle(fontWeight: FontWeight.w800)),
+              title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
               subtitle: Text(
                 [
                   if (t.loaded) t.name ?? t.type ?? '',
@@ -277,7 +277,7 @@ class AmsTab extends StatelessWidget {
                   children: [
                     _SpoolDot(color: parseHex('#$color'), loaded: true, size: 40),
                     const SizedBox(width: 14),
-                    Text(name, style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                    Text(name, style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -369,7 +369,7 @@ class _Spool extends StatelessWidget {
             Text(label, style: t.textTheme.labelSmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
             Text(
               tray.loaded ? (tray.type ?? '?') : 'Vacía',
-              style: t.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+              style: t.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             Text(
               tray.active ? 'En uso' : (tray.remain >= 0 ? '${tray.remain}%' : ' '),

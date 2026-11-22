@@ -41,7 +41,7 @@ class QueuePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(value, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                    Text(value, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                     Text(label, style: t.textTheme.labelMedium?.copyWith(color: t.colorScheme.onSurfaceVariant)),
                   ],
                 ),
@@ -90,7 +90,7 @@ class QueuePage extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   printers[i].name,
-                                  style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                                  style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                                 ),
                               ),
                               Text(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:material_ui/material_ui.dart' show ThemeMode;
 import 'package:flutter/widgets.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -69,6 +70,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     events.clear();
     queues.clear();
     api = null;
+    notifyListeners();
+  }
+
+  ThemeMode get themeMode => switch (store.themeMode) {
+    'light' => ThemeMode.light,
+    'system' => ThemeMode.system,
+    _ => ThemeMode.dark,
+  };
+
+  Future<void> setThemeMode(String mode) async {
+    await store.setThemeMode(mode);
     notifyListeners();
   }
 

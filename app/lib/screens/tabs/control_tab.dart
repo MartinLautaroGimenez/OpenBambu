@@ -161,7 +161,7 @@ class _TempControl extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: '${value.toStringAsFixed(0)}°',
-                            style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                            style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
                           ),
                           TextSpan(
                             text: target > 0 ? '  /  ${target.round()}°' : '  /  apagado',
@@ -196,13 +196,13 @@ class _TempControl extends StatelessWidget {
               children: [
                 Text(
                   'Temperatura de ${label.toLowerCase()}',
-                  style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(c).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 20),
                 Center(
                   child: Text(
                     '${v.round()} °C',
-                    style: Theme.of(c).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w800, color: color),
+                    style: Theme.of(c).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.w700, color: color),
                   ),
                 ),
                 Slider(
@@ -284,7 +284,7 @@ class _FanSliderState extends State<_FanSlider> {
               Expanded(
                 child: Text(widget.label, style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
-              Text('${v.round()}%', style: const TextStyle(fontWeight: FontWeight.w800)),
+              Text('${v.round()}%', style: const TextStyle(fontWeight: FontWeight.w700)),
             ],
           ),
           Slider(

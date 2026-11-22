@@ -50,7 +50,7 @@ Future<String?> askRejectReason(BuildContext context) => showModalBottomSheet<St
       children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
-          child: Text('¿Qué salió mal?', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+          child: Text('¿Qué salió mal?', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
@@ -200,7 +200,7 @@ class _PrintDetailState extends State<_PrintDetail> {
           ),
         ],
         const SizedBox(height: 14),
-        Text(rec.name, style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        Text(rec.name, style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(
           '${rec.statusLabel} · ${formatClock(rec.started)}'

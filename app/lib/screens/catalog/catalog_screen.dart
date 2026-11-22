@@ -132,7 +132,7 @@ class _CatalogScreenState extends State<CatalogScreen> with AutomaticKeepAliveCl
                   children: [
                     Row(
                       children: [
-                        Text('Explorar', style: t.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+                        Text('Explorar', style: t.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
                         const Spacer(),
                         _PrinterPill(onTap: widget.onOpenPrinter),
                       ],
@@ -291,7 +291,7 @@ class _ModelCard extends StatelessWidget {
                         'printables' => 'Printables',
                         'thingiverse' => 'Thingiverse',
                         _ => item.source,
-                      }, style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800)),
+                      }, style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -373,7 +373,7 @@ class _PrinterPill extends StatelessWidget {
             const SizedBox(width: 7),
             Text(
               s.isActive ? '${s.job.progress}% · ${formatDuration(s.job.remainingMin)}' : s.stateLabel,
-              style: TextStyle(color: c, fontWeight: FontWeight.w800, fontSize: 13),
+              style: TextStyle(color: c, fontWeight: FontWeight.w700, fontSize: 13),
             ),
           ],
         ),

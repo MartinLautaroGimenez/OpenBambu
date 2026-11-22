@@ -151,7 +151,7 @@ class _ProjectCard extends StatelessWidget {
                             project.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                           ),
                         ),
                         if (project.printing > 0)
@@ -178,7 +178,7 @@ class _ProjectCard extends StatelessWidget {
                           const Spacer(),
                           Text(
                             '${project.progress ?? 0}%',
-                            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+                            style: TextStyle(color: color, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -403,12 +403,12 @@ class _ProjectScreenState extends State<ProjectScreen> {
                             children: [
                               Text(
                                 '${p.ok} de ${p.target} piezas listas',
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                               ),
                               const Spacer(),
                               Text(
                                 '${p.progress ?? 0}%',
-                                style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 18),
+                                style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 18),
                               ),
                             ],
                           ),

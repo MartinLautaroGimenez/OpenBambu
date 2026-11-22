@@ -163,10 +163,7 @@ class _ArchiveCard extends StatelessWidget {
     final muted = t.colorScheme.onSurfaceVariant;
     return Card(
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: t.colorScheme.outlineVariant.withValues(alpha: 0.3)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: InkWell(
         onTap: () => showPrintDetail(context, rec, onChanged),
         child: Column(
@@ -193,7 +190,7 @@ class _ArchiveCard extends StatelessWidget {
                       decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(99)),
                       child: Text(
                         rec.status == 'printing' ? 'Imprimiendo' : rec.statusLabel,
-                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800, fontSize: 11),
+                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 11),
                       ),
                     ),
                   ),
@@ -241,7 +238,7 @@ class _ArchiveCard extends StatelessWidget {
                     rec.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 2),
                   Text(

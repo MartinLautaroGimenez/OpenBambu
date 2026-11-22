@@ -165,7 +165,7 @@ class _PrintCard extends StatelessWidget {
                       rec.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -268,7 +268,7 @@ class _StatsViewState extends State<StatsView> {
           children: [
             Icon(icon, color: color, size: 20),
             const SizedBox(height: 8),
-            Text(value, style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            Text(value, style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             Text(label, style: t.textTheme.labelMedium?.copyWith(color: t.colorScheme.onSurfaceVariant)),
           ],
         ),

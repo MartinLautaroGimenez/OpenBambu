@@ -69,7 +69,7 @@ class _LoginSheetState extends State<_LoginSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Vincular MakerWorld', style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          Text('Vincular MakerWorld', style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(
             'MakerWorld pide una cuenta para descargar. Usá tu cuenta de Bambu Lab: '

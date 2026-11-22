@@ -45,12 +45,10 @@ class PrinterCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: s.hms.isNotEmpty || queue.waitingBedClear
-              ? AppColors.warning.withValues(alpha: 0.6)
-              : t.colorScheme.outlineVariant.withValues(alpha: 0.3),
-        ),
+        borderRadius: BorderRadius.circular(24),
+        side: s.hms.isNotEmpty || queue.waitingBedClear
+            ? BorderSide(color: AppColors.warning.withValues(alpha: 0.6), width: 1.5)
+            : BorderSide.none,
       ),
       child: InkWell(
         onTap: onOpen,
@@ -81,7 +79,7 @@ class PrinterCard extends StatelessWidget {
                           printer.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                         ),
                         Text(
                           [
@@ -148,7 +146,7 @@ class PrinterCard extends StatelessWidget {
                               ),
                               Text(
                                 '${s.job.progress}%',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20),
                               ),
                             ],
                           ),
@@ -174,7 +172,7 @@ class PrinterCard extends StatelessWidget {
                           ),
                         ),
                         if (size == CardSize.compact)
-                          Text('${s.job.progress}%', style: const TextStyle(fontWeight: FontWeight.w900)),
+                          Text('${s.job.progress}%', style: const TextStyle(fontWeight: FontWeight.w800)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -446,7 +444,7 @@ class _AmsStrip extends StatelessWidget {
                           tr.loaded ? (tr.type ?? '?') : '—',
                           maxLines: 1,
                           overflow: TextOverflow.clip,
-                          style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 11),
+                          style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11),
                         ),
                         Text(label, style: TextStyle(color: fg.withValues(alpha: 0.75), fontSize: 9.5)),
                       ],

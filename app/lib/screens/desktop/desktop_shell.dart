@@ -362,7 +362,7 @@ class _Sidebar extends StatelessWidget {
                       ),
                       child: Text(
                         count,
-                        style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 11.5),
+                        style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 11.5),
                       ),
                     ),
                 ],
@@ -404,7 +404,7 @@ class _Sidebar extends StatelessWidget {
                 if (!collapsed) ...[
                   const SizedBox(width: 10),
                   const Expanded(
-                    child: Text('OpenBambu', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+                    child: Text('OpenBambu', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
                   ),
                   if (onToggle != null)
                     IconButton(
@@ -548,7 +548,7 @@ class _Page extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                    Text(title, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                     if (subtitle != null && subtitle!.isNotEmpty)
                       Text(subtitle!, style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant)),
                   ],
@@ -652,12 +652,8 @@ class _PrinterDetail extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
             child: Text(
-              title.toUpperCase(),
-              style: t.textTheme.labelMedium?.copyWith(
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w800,
-                color: t.colorScheme.onSurfaceVariant,
-              ),
+              title,
+              style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: t.colorScheme.primary),
             ),
           ),
           Expanded(child: child),
@@ -673,7 +669,7 @@ class _PrinterDetail extends StatelessWidget {
             children: [
               IconButton(tooltip: 'Volver a impresoras', onPressed: onBack, icon: const Icon(Icons.arrow_back_rounded)),
               const SizedBox(width: 4),
-              Text(printer.name, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              Text(printer.name, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

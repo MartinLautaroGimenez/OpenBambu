@@ -42,6 +42,22 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SectionTitle('Apariencia'),
+          Builder(
+            builder: (context) {
+              final st = context.watch<AppState>();
+              return SegmentedButton<String>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: 'system', icon: Icon(Icons.brightness_auto_rounded), label: Text('Sistema')),
+                  ButtonSegment(value: 'light', icon: Icon(Icons.light_mode_rounded), label: Text('Claro')),
+                  ButtonSegment(value: 'dark', icon: Icon(Icons.dark_mode_rounded), label: Text('Oscuro')),
+                ],
+                selected: {st.store.themeMode},
+                onSelectionChanged: (v) => st.setThemeMode(v.first),
+              );
+            },
+          ),
           const SectionTitle('Impresoras'),
           Card(
             child: ListTile(

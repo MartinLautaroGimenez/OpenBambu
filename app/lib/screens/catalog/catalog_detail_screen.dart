@@ -174,7 +174,7 @@ class _CatalogDetailScreenState extends State<CatalogDetailScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
             sliver: SliverList.list(
               children: [
-                Text(title, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                Text(title, style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -356,7 +356,7 @@ class _FileTile extends StatelessWidget {
                     ),
                     child: Text(
                       'Tu ${file.printer}',
-                      style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w800, fontSize: 12),
+                      style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700, fontSize: 12),
                     ),
                   )
                 : Text(file.kind == 'profile' ? 'PERFIL' : file.kind.toUpperCase(), style: t.textTheme.labelSmall),

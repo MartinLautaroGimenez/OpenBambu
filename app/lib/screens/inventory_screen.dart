@@ -96,7 +96,7 @@ class _SpoolCard extends StatelessWidget {
                   children: [
                     Text(
                       spool.label.isEmpty ? spool.material : spool.label,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 6),
                     ClipRRect(
@@ -135,7 +135,7 @@ class _SpoolCard extends StatelessWidget {
                 child: Text(
                   trayLabel(spool.tray),
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
                     color: spool.tray == null ? null : AppColors.accent,
                   ),
@@ -227,7 +227,7 @@ class _SpoolFormState extends State<_SpoolForm> {
           children: [
             Text(
               widget.spool == null ? 'Nuevo carrete' : 'Editar carrete',
-              style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 14),
             Wrap(

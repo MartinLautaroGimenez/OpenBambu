@@ -32,6 +32,7 @@ class OpenBambuApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final configured = context.select<AppState, bool>((s) => s.store.configured);
+    final themeMode = context.select<AppState, ThemeMode>((s) => s.themeMode);
     return WithForegroundTask(
       child: MaterialApp(
         title: 'OpenBambu',
@@ -41,7 +42,7 @@ class OpenBambuApp extends StatelessWidget {
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
-        themeMode: ThemeMode.dark,
+        themeMode: themeMode,
         home: configured ? const PrinterScreen() : const SetupScreen(),
       ),
     );

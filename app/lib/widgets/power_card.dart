@@ -244,7 +244,7 @@ class _PowerSetupState extends State<_PowerSetup> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Home Assistant', style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            Text('Home Assistant', style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
             Text(
               'Creá un token de larga duración en Home Assistant: tu perfil → Seguridad → Tokens de acceso.',
@@ -289,7 +289,7 @@ class _PowerSetupState extends State<_PowerSetup> {
               const SizedBox(height: 16),
               Text(
                 'Consumo eléctrico (opcional)',
-                style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
               Text(

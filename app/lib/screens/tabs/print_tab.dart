@@ -382,7 +382,7 @@ class _LibraryCard extends StatelessWidget {
                       item.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -478,7 +478,7 @@ class QueueSection extends StatelessWidget {
                     Expanded(
                       child: Text(
                         'Retirá la pieza de la cama',
-                        style: TextStyle(fontWeight: FontWeight.w800, color: AppColors.warning, fontSize: 16),
+                        style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.warning, fontSize: 16),
                       ),
                     ),
                   ],

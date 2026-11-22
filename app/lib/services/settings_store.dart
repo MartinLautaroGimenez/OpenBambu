@@ -7,6 +7,7 @@ class SettingsStore {
   static const _kBackground = 'background_monitor';
   static const _kLastEvent = 'last_event_id';
   static const _kSelected = 'selected_printer';
+  static const _kTheme = 'theme_mode';
 
   final SharedPreferences prefs;
   SettingsStore(this.prefs);
@@ -19,6 +20,10 @@ class SettingsStore {
   bool get backgroundMonitor => prefs.getBool(_kBackground) ?? true;
   int get lastEventId => prefs.getInt(_kLastEvent) ?? 0;
   String? get selectedPrinter => prefs.getString(_kSelected);
+
+  /// 'system' | 'light' | 'dark'
+  String get themeMode => prefs.getString(_kTheme) ?? 'dark';
+  Future<void> setThemeMode(String v) => prefs.setString(_kTheme, v);
 
   Future<void> setServer(String url, String token) async {
     await prefs.setString(_kUrl, url);

@@ -91,7 +91,7 @@ class _PrintersScreenState extends State<PrintersScreen> {
                             color: p.connected ? AppColors.accent : t.colorScheme.outline,
                           ),
                         ),
-                        title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                        title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                         subtitle: Text(
                           p.mode == 'simulator'
                               ? 'Simulador · ${printerModels[p.model] ?? p.model}'

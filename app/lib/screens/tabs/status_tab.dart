@@ -87,7 +87,7 @@ class _HmsBanner extends StatelessWidget {
                 children: [
                   Text(
                     serious ? 'Error de la impresora' : 'Aviso de la impresora',
-                    style: TextStyle(color: c, fontWeight: FontWeight.w800),
+                    style: TextStyle(color: c, fontWeight: FontWeight.w700),
                   ),
                   Text(hms.description ?? 'HMS ${hms.code}', style: const TextStyle(fontSize: 13.5)),
                   const SizedBox(height: 2),
@@ -161,7 +161,7 @@ class _CameraCard extends StatelessWidget {
                         SizedBox(width: 5),
                         Text(
                           'EN VIVO',
-                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
@@ -249,7 +249,7 @@ class _JobCard extends StatelessWidget {
               hasJob ? job.name! : 'Sin impresión en curso',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
             if (s.state == 'FAILED' && job.printErrorText != null)
               Padding(
@@ -271,7 +271,7 @@ class _JobCard extends StatelessWidget {
                 children: [
                   Text(
                     '${job.progress}',
-                    style: t.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w800, height: 1),
+                    style: t.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700, height: 1),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4, left: 2),
@@ -407,7 +407,7 @@ class _TempTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text('${value.round()}°', style: t.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800)),
+              Text('${value.round()}°', style: t.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
               Text(
                 target > 0 ? 'Objetivo ${target.round()}°' : 'Apagado',
                 style: t.textTheme.labelMedium?.copyWith(color: target > 0 ? color : t.colorScheme.onSurfaceVariant),

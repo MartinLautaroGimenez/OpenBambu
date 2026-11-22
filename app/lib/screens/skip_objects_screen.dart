@@ -208,7 +208,7 @@ class _SkipObjectsScreenState extends State<SkipObjectsScreen> {
                                 : (_selected.contains(o.id) ? AppColors.danger : AppColors.accent).withValues(
                                     alpha: 0.2,
                                   ),
-                            child: Text('${i + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                            child: Text('${i + 1}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                           ),
                           title: Text(
                             o.name,
@@ -297,7 +297,7 @@ class _BedPainter extends CustomPainter {
           final tp = TextPainter(
             text: TextSpan(
               text: '${i + 1}',
-              style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 16),
+              style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16),
             ),
             textDirection: TextDirection.ltr,
           )..layout();

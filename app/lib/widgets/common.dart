@@ -53,17 +53,14 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
+    padding: const EdgeInsets.fromLTRB(6, 24, 4, 10),
     child: Row(
       children: [
         Expanded(
           child: Text(
-            text.toUpperCase(),
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            text,
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.primary),
           ),
         ),
         ?trailing,
@@ -172,7 +169,7 @@ class ConnectionBanner extends StatelessWidget {
               if (s.conn == ConnState.disconnected)
                 const Text(
                   'Reintentar',
-                  style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w800),
+                  style: TextStyle(color: AppColors.warning, fontWeight: FontWeight.w700),
                 ),
             ],
           ),

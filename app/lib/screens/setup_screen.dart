@@ -70,7 +70,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('Conectá tu servidor', style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                Text('Conectá tu servidor', style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
                 Text(
                   'OpenBambu se conecta a tu servidor (Docker en una PC, NAS o Raspberry Pi), '

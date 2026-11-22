@@ -211,7 +211,7 @@ class _SliceScreenState extends State<SliceScreen> {
               ? 'Esperando turno…'
               : 'Laminando…',
           textAlign: TextAlign.center,
-          style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
         Text(
@@ -387,7 +387,7 @@ class _SliceScreenState extends State<SliceScreen> {
                     children: [
                       const Text('Densidad', style: TextStyle(fontWeight: FontWeight.w600)),
                       const Spacer(),
-                      Text('$_infill %', style: const TextStyle(fontWeight: FontWeight.w800)),
+                      Text('$_infill %', style: const TextStyle(fontWeight: FontWeight.w700)),
                     ],
                   ),
                   Slider(
@@ -451,7 +451,7 @@ class _SliceScreenState extends State<SliceScreen> {
                     child: Text(
                       '$_copies',
                       textAlign: TextAlign.center,
-                      style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                      style: t.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                   IconButton.filledTonal(
@@ -478,7 +478,7 @@ class _SliceScreenState extends State<SliceScreen> {
                     onPressed: _walls > 1 ? () => setState(() => _walls--) : null,
                     icon: const Icon(Icons.remove_rounded),
                   ),
-                  Text('$_walls', style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text('$_walls', style: const TextStyle(fontWeight: FontWeight.w700)),
                   IconButton(
                     onPressed: _walls < 10 ? () => setState(() => _walls++) : null,
                     icon: const Icon(Icons.add_rounded),
