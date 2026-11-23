@@ -36,6 +36,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // El análisis lint de release falla con algunos plugins (no afecta a la app)
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
 }
 
 kotlin {

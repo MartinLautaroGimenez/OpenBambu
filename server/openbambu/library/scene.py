@@ -430,6 +430,21 @@ def write_project(
     """Escribe un proyecto 3MF con las piezas ubicadas en sus placas."""
     if not items:
         raise SceneError("La placa está vacía")
+    # El filamento se guarda por objeto: una copia del objeto por cada filamento elegido
+    split: dict[str, SceneObject] = {}
+    remapped: list[Placement] = []
+    for it in items:
+        obj = objects[it.key]
+        ext = it.extruder or obj.extruder or 1
+        ident = f"{it.key}#{ext}"
+        if ident not in split:
+            o = SceneObject(ident, obj.name, obj.parts, ext)
+            if it.extruder and len(obj.parts) == 1 and obj.parts[0].extruder not in (None, it.extruder):
+                p0 = obj.parts[0]
+                o.parts = [Part(p0.vertices, p0.triangles, p0.transform, None, p0.name, p0.subtype, p0.paint)]
+            split[ident] = o
+        remapped.append(Placement(ident, it.plate, it.matrix, it.extruder))
+    objects, items = split, remapped
     plates = sorted(plates, key=lambda p: p["index"]) or [{"index": 1, "name": ""}]
     # Renumerar placas 1..N sin huecos (las placas vacías se descartan)
     used = sorted({it.plate for it in items})
@@ -490,15 +505,14 @@ def write_project(
     for key in used_keys:
         obj = objects[key]
         cid, part_ids = obj_ids[key]
-        # El filamento de un objeto puede cambiar por instancia en el editor: se usa el de la primera
-        ext = next((it.extruder for it in items if it.key == key and it.extruder), None) or obj.extruder or 1
+        ext = obj.extruder or 1
         cfg.append(f'  <object id="{cid}">\n    <metadata key="name" value="{_xml(obj.name)}"/>\n'
                    f'    <metadata key="extruder" value="{ext}"/>\n')
         for pid, part in zip(part_ids, obj.parts):
             cfg.append(f'    <part id="{pid}" subtype="{_xml(part.subtype)}">\n'
                        f'      <metadata key="name" value="{_xml(part.name or obj.name)}"/>\n')
-            if part.extruder and len(obj.parts) > 1:
-                cfg.append(f'      <metadata key="extruder" value="{part.extruder}"/>\n')
+            part_ext = part.extruder if part.extruder and len(obj.parts) > 1 else ext
+            cfg.append(f'      <metadata key="extruder" value="{part_ext}"/>\n')
             cfg.append("    </part>\n")
         cfg.append("  </object>\n")
     for old in used:
