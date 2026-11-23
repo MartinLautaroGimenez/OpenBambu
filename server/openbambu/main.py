@@ -13,6 +13,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from . import __version__
 from .api.catalog import router as catalog_router
 from .api.files import router as files_router
+from .api.editor import router as editor_router
 from .api.history import router as history_router
 from .api.maintenance import router as maintenance_router
 from .api.power import router as power_router
@@ -45,8 +46,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(power_router)
     app.include_router(admin_router)
     app.include_router(maintenance_router)
+    app.include_router(editor_router)
+    _mount_editor(app)
     _mount_web(app)
     return app
+
+
+def _mount_editor(app: FastAPI) -> None:
+    """Editor 3D de placas (three.js), usado por la app y el dashboard."""
+    from pathlib import Path
+
+    from fastapi.staticfiles import StaticFiles
+
+    class EditorFiles(StaticFiles):
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            if not path.startswith("vendor"):
+                resp.headers["Cache-Control"] = "no-cache"
+            return resp
+
+    app.mount("/editor", EditorFiles(directory=Path(__file__).parent / "editor", html=True), name="editor")
 
 
 def _mount_web(app: FastAPI) -> None:

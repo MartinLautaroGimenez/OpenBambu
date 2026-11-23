@@ -155,6 +155,26 @@ async def main(model: str = "A1") -> int:
                   f"{pm['plates'][0]['weight_g']} g")
             if not pm["sliced"]:
                 return 1
+        # Proyecto armado en el editor: 3 cubos en 2 placas, uno con el filamento 2
+        from ..library.scene import Placement, read_scene, write_project
+
+        bed = (180.0, 180.0) if model == "A1MINI" else (256.0, 256.0)
+        sc = read_scene(stl, bed, "cubo")
+        m = sc.items[0].matrix
+        moved = list(m)
+        moved[9] += 40
+        items = [Placement("1", 1, m), Placement("1", 1, moved, 2), Placement("1", 2, m)]
+        edited = work / "editor.3mf"
+        write_project(edited, sc.objects, items, [{"index": 1, "name": "A"}, {"index": 2, "name": "B"}], bed)
+        t0 = time.time()
+        res = await slice_file(edited, lib.resolve(machine), lib.resolve(process), [lib.resolve(filament)],
+                               work / "editor", plate=0, on_line=lambda line: print("  orca:", line))
+        pm = read_3mf(res)
+        print(f"Proyecto del editor: OK en {time.time() - t0:.0f} s, placas {[p['index'] for p in pm['plates']]}, "
+              f"filamentos placa 1 {[f['id'] for f in pm['plates'][0]['filaments']]}")
+        if [p["index"] for p in pm["plates"]] != [1, 2] or len(pm["plates"][0]["filaments"]) != 2:
+            print("ERROR: el proyecto del editor no se laminó como se esperaba")
+            return 1
         return 0
 
 

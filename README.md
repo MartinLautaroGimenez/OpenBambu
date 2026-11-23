@@ -24,6 +24,7 @@ Software libre para controlar impresoras **Bambu Lab** (pensado para la **A1**, 
 | 🧵 **Inventario de filamento** | Carretes con marca, material, color, peso y precio, asignados a las bandejas; cada impresión descuenta los gramos y calcula el costo; avisa si no alcanza |
 | 📈 **Historial y estadísticas** | Cada impresión con foto final, duración, gramos y costo; reimprimir; éxito, horas, gasto, por mes y por material |
 | 🔌 **Enchufe (Home Assistant)** | Prender/apagar desde la app, auto-apagado al terminar y enfriarse, auto-encendido cuando la cola tiene un trabajo |
+| 🧱 **Editor de placa 3D** | En el celular y en la web: mover, rotar, escalar, duplicar o hacer copias, borrar, apoyar una cara sobre la cama, acomodar automáticamente, varias placas, filamento por pieza, agregar modelos de la biblioteca, deshacer/rehacer. Funciona con STL, OBJ y proyectos 3MF de MakerWorld (conserva piezas multicolor y pintura) |
 | 🧊 **Vista previa del G-code** | Visor 3D y capa por capa, coloreado por tipo de línea o filamento |
 | ⏰ **Programar impresiones** | Elegís día y hora; la cola arranca sola (y prende la impresora con el enchufe) |
 | 🎬 **Timelapse** | Una foto por capa y video al terminar, en el historial de cada impresión |

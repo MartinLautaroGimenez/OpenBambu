@@ -192,6 +192,10 @@ async def slice_file(
         return await run_orca([src] * max(1, copies), machine, process, filaments, work, on_line)
     if copies > 1:
         raise SliceError("Las copias se arman en la placa del proyecto; elegí 1 copia")
+    # Proyectos del editor sin ajustes propios: un perfil de filamento por cada filamento usado
+    need = _extruders_used(src)
+    if filaments and len(filaments) < need:
+        filaments = filaments + [filaments[-1]] * (need - len(filaments))
 
     drop: set[str] = set()
     lines: list[str] = []
@@ -217,6 +221,22 @@ async def slice_file(
                 raise
             drop |= bad
     raise SliceError("El proyecto tiene ajustes que OrcaSlicer no acepta")
+
+
+def _extruders_used(src: Path) -> int:
+    """Cantidad de filamentos que usa un proyecto sin ``project_settings.config`` (0 si tiene ajustes)."""
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(src) as z:
+            names = set(z.namelist())
+            if "Metadata/project_settings.config" in names or "Metadata/model_settings.config" not in names:
+                return 0
+            text = z.read("Metadata/model_settings.config").decode(errors="replace")
+    except (OSError, zipfile.BadZipFile):
+        return 0
+    vals = [int(v) for v in re.findall(r'key="extruder" value="(\d+)"', text)]
+    return max(vals, default=1)
 
 
 class SliceManager:

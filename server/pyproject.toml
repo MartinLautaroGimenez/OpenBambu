@@ -12,6 +12,7 @@ dependencies = [
   "pydantic>=2.7",
   "pillow>=10",
   "qrcode>=7.4",
+  "numpy>=1.26",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +27,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["openbambu*"]
+
+[tool.setuptools.package-data]
+openbambu = ["editor/*.html", "editor/*.js", "editor/*.css", "editor/vendor/*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

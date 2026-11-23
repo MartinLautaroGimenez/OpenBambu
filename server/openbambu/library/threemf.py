@@ -172,7 +172,7 @@ def read_project(path: Path) -> dict:
                 filaments.append({"id": i + 1, "type": t, "color": c[:7].upper() if c.startswith("#") else None})
             printer = cfg.get("printer_model") or None
     return {"project_plates": sorted(plates, key=lambda p: p["index"]), "project_filaments": filaments,
-            "project_printer": printer}
+            "project_printer": printer, "project_has_settings": "Metadata/project_settings.config" in names}
 
 
 def sanitize_project(src: Path, dest: Path, drop: set[str] | None = None, any_printer: bool = False) -> list[str]:

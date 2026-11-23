@@ -532,11 +532,13 @@ class ProjectInfo {
   final List<ProjectPlate> plates;
   final List<FileFilament> filaments;
   final String? printer;
+  final bool hasSettings;
 
   ProjectInfo.fromJson(Map<String, dynamic> j)
     : plates = [for (final p in (j['project_plates'] as List? ?? [])) ProjectPlate.fromJson(p)],
       filaments = [for (final f in (j['project_filaments'] as List? ?? [])) FileFilament.fromJson(f)],
-      printer = j['project_printer'];
+      printer = j['project_printer'],
+      hasSettings = j['project_has_settings'] != false;
 }
 
 class CatalogDetail {

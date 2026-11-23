@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#101214">
+  <title>Editor de placa · OpenBambu</title>
+  <link rel="stylesheet" href="editor.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/" } }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <button class="icon" id="btn-back" title="Volver" aria-label="Volver">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20z"/></svg>
+      </button>
+      <div class="title">
+        <input id="name" spellcheck="false" aria-label="Nombre del proyecto">
+        <span id="subtitle">Editor de placa</span>
+      </div>
+      <button class="icon" id="btn-undo" title="Deshacer (Ctrl+Z)" aria-label="Deshacer">
+        <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62A7.95 7.95 0 0 1 12.5 10c3.54 0 6.55 2.31 7.6 5.5l2.37-.78A10.02 10.02 0 0 0 12.5 8z"/></svg>
+      </button>
+      <button class="icon" id="btn-redo" title="Rehacer (Ctrl+Shift+Z)" aria-label="Rehacer">
+        <svg viewBox="0 0 24 24"><path d="M18.4 10.6A10.02 10.02 0 0 0 11.5 8c-4.65 0-8.58 3.03-9.96 7.22l2.36.78A8 8 0 0 1 11.5 10c1.95 0 3.73.72 5.12 1.88L13 15.5h9v-9z"/></svg>
+      </button>
+      <button class="primary" id="btn-save"><span class="long">Guardar y laminar</span><span class="short">Laminar</span></button>
+    </header>
+
+    <div id="plates"></div>
+
+    <main id="stage">
+      <canvas id="view"></canvas>
+      <div id="loading"><div class="spinner"></div><span id="loading-text">Cargando modelo…</span></div>
+      <div id="toast" role="status"></div>
+      <div id="warning" class="chip warn" hidden></div>
+      <div id="viewbar">
+        <button class="mini" data-view="iso" title="Vista 3D">3D</button>
+        <button class="mini" data-view="top" title="Vista superior">Arriba</button>
+        <button class="mini" data-view="front" title="Vista frontal">Frente</button>
+      </div>
+    </main>
+
+    <nav id="toolbar">
+      <button class="tool active" data-mode="translate" title="Mover (M)"><svg viewBox="0 0 24 24"><path d="M10 9h4V6h3l-5-5-5 5h3zm-1 1H6V7l-5 5 5 5v-3h3zm14 2-5-5v3h-3v4h3v3zm-9 3h-4v3H7l5 5 5-5h-3z"/></svg><span>Mover</span></button>
+      <button class="tool" data-mode="rotate" title="Rotar (R)"><svg viewBox="0 0 24 24"><path d="M12 6V3L8 7l4 4V8c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg><span>Rotar</span></button>
+      <button class="tool" data-mode="scale" title="Escalar (S)"><svg viewBox="0 0 24 24"><path d="M21 15h-2v2h2zm0-4h-2v2h2zm0 8h-2v2c1 0 2-1 2-2zM13 3h-2v2h2zm8 4h-2v2h2zm-2-4v2h2c0-1-1-2-2-2zM5 21v-2H3c0 1 1 2 2 2zm-2-4h2v-2H3zM9 3H7v2h2zM5 3C4 3 3 4 3 5h2zm12 0h-2v2h2zM3 7h2v2H3zm8 14h2v-2h-2zm4 0h2v-2h-2zM3 11h2v2H3zm4 10h6v-6H3v6h4z"/></svg><span>Escalar</span></button>
+      <span class="sep"></span>
+      <button class="tool" id="btn-duplicate" title="Duplicar (Ctrl+D)"><svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11z"/></svg><span>Duplicar</span></button>
+      <button class="tool" id="btn-delete" title="Borrar (Supr)"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z"/></svg><span>Borrar</span></button>
+      <button class="tool" id="btn-flat" title="Apoyar una cara sobre la cama (F)"><svg viewBox="0 0 24 24"><path d="M3 19h18v2H3zM12 3l7 12H5z"/></svg><span>Apoyar</span></button>
+      <button class="tool" id="btn-arrange" title="Acomodar todo (A)"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z"/></svg><span>Acomodar</span></button>
+      <button class="tool" id="btn-add" title="Agregar modelo de la biblioteca"><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span>Agregar</span></button>
+      <button class="tool" id="btn-more" title="Más opciones"><svg viewBox="0 0 24 24"><path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg><span>Más</span></button>
+    </nav>
+
+    <aside id="panel" hidden>
+      <div class="panel-head">
+        <span class="swatch" id="sel-swatch"></span>
+        <div class="panel-title"><b id="sel-name">—</b><small id="sel-size"></small></div>
+        <button class="icon small" id="btn-close-panel" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg></button>
+      </div>
+      <section data-for="translate">
+        <label>Posición (mm)</label>
+        <div class="row3">
+          <div class="field"><span>X</span><input type="number" step="1" id="pos-x"></div>
+          <div class="field"><span>Y</span><input type="number" step="1" id="pos-y"></div>
+          <button class="chipbtn" id="btn-center">Centrar</button>
+        </div>
+      </section>
+      <section data-for="rotate">
+        <label>Rotar</label>
+        <div class="row-btns">
+          <button class="chipbtn" data-rot="z,-15">Z −15°</button><button class="chipbtn" data-rot="z,15">Z +15°</button>
+          <button class="chipbtn" data-rot="z,90">Z 90°</button><button class="chipbtn" data-rot="x,90">X 90°</button>
+          <button class="chipbtn" data-rot="y,90">Y 90°</button><button class="chipbtn" id="btn-reset-rot">Sin rotar</button>
+        </div>
+        <div class="row3"><div class="field"><span>Z°</span><input type="number" step="1" id="rot-z"></div></div>
+      </section>
+      <section data-for="scale">
+        <label>Tamaño</label>
+        <div class="row3">
+          <div class="field"><span>%</span><input type="number" step="1" min="1" id="scale-pct"></div>
+          <div class="field"><span>X</span><input type="number" step="0.1" id="size-x"></div>
+          <div class="field"><span>Y</span><input type="number" step="0.1" id="size-y"></div>
+          <div class="field"><span>Z</span><input type="number" step="0.1" id="size-z"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="uniform" checked> Proporcional</label>
+      </section>
+      <section>
+        <label>Filamento</label>
+        <div id="filaments" class="row-btns"></div>
+      </section>
+      <section>
+        <label>Placa</label>
+        <select id="sel-plate"></select>
+      </section>
+    </aside>
+
+    <div id="sheet" hidden>
+      <div class="sheet-card">
+        <div class="sheet-head"><b id="sheet-title"></b><button class="icon small" id="sheet-close" aria-label="Cerrar"><svg viewBox="0 0 24 24"><path d="M19 6.4 17.6 5 12 10.6 6.4 5 5 6.4 10.6 12 5 17.6 6.4 19 12 13.4 17.6 19 19 17.6 13.4 12z"/></svg></button></div>
+        <div id="sheet-body"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="editor.js"></script>
+</body>
+</html>

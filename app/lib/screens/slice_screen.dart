@@ -9,6 +9,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/plate_card.dart';
+import 'editor_screen.dart';
 import 'print_screen.dart';
 
 /// Laminar un modelo (STL/OBJ/STEP/3MF) en el servidor con OrcaSlicer.
@@ -43,7 +44,8 @@ class _SliceScreenState extends State<SliceScreen> {
   bool _oldServer = false;
 
   bool get _isProject => widget.item.format == '3mf';
-  bool get _useAuthor => _isProject && _authorSettings && !_oldServer;
+  bool get _hasAuthor => _isProject && !_oldServer && (_project?.hasSettings ?? true);
+  bool get _useAuthor => _hasAuthor && _authorSettings;
 
   SliceJob? _job;
   Timer? _poll;
@@ -298,7 +300,32 @@ class _SliceScreenState extends State<SliceScreen> {
             child: PlateCard(plate: plates.first, libraryId: widget.item.id, width: 180),
           ),
         ],
-        if (_isProject && !_oldServer) ...[
+        if (EditorScreen.canEdit(widget.item) && !_oldServer) ...[
+          const SizedBox(height: 12),
+          Card(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            child: ListTile(
+              contentPadding: const EdgeInsets.fromLTRB(16, 6, 12, 6),
+              leading: Icon(Icons.view_in_ar_rounded, color: Theme.of(context).colorScheme.onPrimaryContainer),
+              title: Text(
+                'Editar placa en 3D',
+                style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onPrimaryContainer),
+              ),
+              subtitle: Text(
+                'Mover, rotar, escalar, duplicar, apoyar y repartir en placas',
+                style: TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.8)),
+              ),
+              trailing: Icon(Icons.chevron_right_rounded, color: Theme.of(context).colorScheme.onPrimaryContainer),
+              onTap: () => Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditorScreen(printerId: widget.printerId, item: widget.item, plate: _plate),
+                ),
+              ),
+            ),
+          ),
+        ],
+        if (_hasAuthor) ...[
           const SizedBox(height: 12),
           Card(
             child: SwitchListTile(
